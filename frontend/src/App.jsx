@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import './App.css';
+import Users from './components/Users/Users';
+
 
 function App() {
   const [users, setUsers] = useState([]);
@@ -17,14 +18,10 @@ function App() {
 
   return (
     <div>
-      <h1>Scalaris</h1>
-      <h2>Користувачі з Django API:</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <ul>
-        {users.map((u) => (
-          <li key={u.id}>{u.username} ({u.email || 'без email'})</li>
-        ))}
-      </ul>
+      <div>
+        <h1>Scalaris</h1>
+        <Users />
+      </div>
     </div>
   );
 }
