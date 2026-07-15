@@ -3,18 +3,18 @@ services:
     image: redis:7-alpine
     container_name: scalaris-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     restart: unless-stopped
 
   postgres:
     image: postgis/postgis:16-3.4
     container_name: scalaris-postgres
     environment:
-      POSTGRES_DB: scalaris_db
-      POSTGRES_USER: scalaris_user
-      POSTGRES_PASSWORD: scalaris_pass
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
