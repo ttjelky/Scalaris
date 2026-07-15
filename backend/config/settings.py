@@ -5,6 +5,9 @@ Django settings for config project.
 from datetime import timedelta
 from pathlib import Path
 import re
+from decouple import config
+import sys
+import platform
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -79,21 +82,7 @@ CORS_ALLOW_CREDENTIALS = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# --- Database (GeoDjango) ---
-# NOTE: the original file defined DATABASES twice (once with a placeholder
-# password, once with real creds). Only this one is kept.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'scalaris_db',
-        'USER': 'scalaris_user',
-        'PASSWORD': 'scalaris_pass',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-
-# --- DRF ---
+# --- DRF: пагінація ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -128,6 +117,24 @@ CHANNEL_LAYERS = {
     },
 }
 
+WSGI_APPLICATION = 'config.wsgi.application'
+
+
+# Database
+# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': config('DB_NAME', default='scalaris_db'),
+        'USER': config('DB_USER', default='scalaris_user'),
+        'PASSWORD': config('DB_PASSWORD', default='scalaris_pass'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
+}
+
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -143,5 +150,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-GDAL_LIBRARY_PATH = '/opt/homebrew/opt/gdal/lib/libgdal.dylib'
-GEOS_LIBRARY_PATH = '/opt/homebrew/opt/geos/lib/libgeos_c.dylib'
+if platform.system() == 'Windows':
+    GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH', default=r'C:\OSGeo4W\bin\gdal313.dll')
+    GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default=r'C:\OSGeo4W\bin\geos_c.dll')
+else:
+    GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH', default='/opt/homebrew/opt/gdal/lib/libgdal.dylib')
+    GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default='/opt/homebrew/opt/geos/lib/libgeos_c.dylib')
