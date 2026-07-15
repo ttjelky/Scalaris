@@ -112,6 +112,21 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+
+    # --- Custom keys (not read by simplejwt itself, only by our own
+    # apps.users.cookies helpers) that control how the refresh token is
+    # stored as an httpOnly cookie instead of being handed to JS. ---
+    'AUTH_COOKIE': 'refresh_token',
+    'AUTH_COOKIE_PATH': '/api/users/',
+    # Secure cookies are dropped by browsers over plain http, which is how
+    # the local dev backend runs — so only require Secure in production.
+    'AUTH_COOKIE_SECURE': not DEBUG,
+    # 'Lax' is sent on same-site requests (localhost:5173 -> localhost:8000
+    # counts as same-site; SameSite ignores port) but withheld on genuine
+    # cross-site POSTs, which is what actually blocks CSRF here — DRF's
+    # APIView.as_view() marks every view csrf_exempt, so Django's own CSRF
+    # middleware never checks these endpoints.
+    'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
 CHANNEL_LAYERS = {

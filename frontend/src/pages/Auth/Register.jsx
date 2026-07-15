@@ -73,36 +73,38 @@ export default function Register() {
           </p>
         )}
 
-        <label className={form.field}>
-          <span className={form.label}>Юзернейм</span>
-          <input
-            className={`${form.input} ${fieldErrors.username ? form.inputError : ''}`}
-            type="text"
-            name="username"
-            autoComplete="username"
-            placeholder="твій_нікнейм"
-            value={values.username}
-            onChange={onChange}
-            required
-          />
-          {fieldErrors.username && <span className={form.fieldError}>{fieldErrors.username}</span>}
-        </label>
+        <div className={form.row}>
+          <label className={form.field}>
+            <span className={form.label}>Юзернейм</span>
+            <input
+              className={`${form.input} ${fieldErrors.username ? form.inputError : ''}`}
+              type="text"
+              name="username"
+              autoComplete="username"
+              placeholder="нікнейм"
+              value={values.username}
+              onChange={onChange}
+              required
+            />
+            {fieldErrors.username && <span className={form.fieldError}>{fieldErrors.username}</span>}
+          </label>
 
-        <label className={form.field}>
-          <span className={form.label}>Email</span>
-          <input
-            className={`${form.input} ${fieldErrors.email ? form.inputError : ''}`}
-            type="email"
-            name="email"
-            autoComplete="email"
-            inputMode="email"
-            placeholder="you@scalaris.app"
-            value={values.email}
-            onChange={onChange}
-            required
-          />
-          {fieldErrors.email && <span className={form.fieldError}>{fieldErrors.email}</span>}
-        </label>
+          <label className={form.field}>
+            <span className={form.label}>Email</span>
+            <input
+              className={`${form.input} ${fieldErrors.email ? form.inputError : ''}`}
+              type="email"
+              name="email"
+              autoComplete="email"
+              inputMode="email"
+              placeholder="email@mail.com"
+              value={values.email}
+              onChange={onChange}
+              required
+            />
+            {fieldErrors.email && <span className={form.fieldError}>{fieldErrors.email}</span>}
+          </label>
+        </div>
 
         <label className={form.field}>
           <span className={form.label}>Пароль</span>

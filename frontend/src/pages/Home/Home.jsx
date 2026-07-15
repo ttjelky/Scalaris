@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useDocumentBackground from '../../hooks/useDocumentBackground';
 import styles from './Home.module.css';
 
 /**
@@ -10,6 +11,7 @@ import styles from './Home.module.css';
 export default function Home() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  useDocumentBackground('#ffffff');
 
   const handleLogout = async () => {
     await logout();
