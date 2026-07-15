@@ -1,12 +1,27 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie
 from .models import User
-from .serializers import RegisterSerializer, UserPublicSerializer, UserSerializer
+from .serializers import (
+    PasswordResetConfirmSerializer,
+    PasswordResetSerializer,
+    RegisterSerializer,
+    UserPublicSerializer,
+    UserSerializer,
+)
+
+
+class PasswordResetToken(Token):
+    """Custom JWT token for password resets with 1-hour lifetime."""
+    token_type = 'password-reset'
+    lifetime = timedelta(hours=1)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -48,3 +63,73 @@ class LogoutView(APIView):
         response = Response(status=status.HTTP_205_RESET_CONTENT)
         clear_refresh_cookie(response)
         return response
+
+
+class PasswordResetView(APIView):
+    """Initiate password reset: send a reset token (in dev, returned in response)."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data['email']
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # Return the same response for security (don't leak email existence)
+            return Response(
+                {'detail': 'If an account with this email exists, you will receive a password reset link.'},
+                status=status.HTTP_200_OK,
+            )
+
+        # Generate a password reset token
+        reset_token = PasswordResetToken.for_user(user)
+        reset_token['email'] = str(user.email)
+
+        return Response(
+            {
+                'detail': 'Password reset link sent.',
+                # In development, return the token in the response so testing is easier.
+                # In production, send this token via email and return only the email confirmation.
+                'token': str(reset_token),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm password reset with token and new password."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_str = serializer.validated_data['token']
+        new_password = serializer.validated_data['password']
+
+        try:
+            reset_token = PasswordResetToken(token_str)
+            user_id = reset_token['user_id']
+        except TokenError as e:
+            return Response(
+                {'detail': f'Invalid or expired reset token: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response(
+            {'detail': 'Password has been reset successfully. You can now log in with your new password.'},
+            status=status.HTTP_200_OK,
+        )

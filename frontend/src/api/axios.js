@@ -36,15 +36,15 @@ let refreshPromise = null;
 
 function refreshAccessToken() {
   if (!refreshPromise) {
-    // The refresh call intentionally uses the bare axios client here so the
-    // interceptor does not try to re-enter itself while the cookie-based
-    // refresh request is still in flight.
-    refreshPromise = axios
-      .post(
-        '/api/users/login/refresh/',
-        {},
-        { withCredentials: true }
-      )
+    // Separate axios instance for refresh without interceptors to avoid
+    // infinite refresh loops while ensuring baseURL and credentials work.
+    const refreshAxios = axios.create({
+      baseURL: '/api',
+      withCredentials: true,
+    });
+    
+    refreshPromise = refreshAxios
+      .post('/users/login/refresh/', {})
       .then(({ data }) => {
         setAccessToken(data.access);
         return data.access;

@@ -1,30 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import api from '../../api/axios';
 import AuthLayout from './AuthLayout';
 import form from './Form.module.css';
-
-// ⚠️ Тимчасовий прямий виклик — заміни URL на свій реальний ендпоінт
-// (або підключи через свій axios-інстанс, якщо він у тебе є в src/api).
-async function requestPasswordReset(email) {
-  const res = await fetch('/api/auth/forgot-password', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const err = new Error(data.detail || 'Request failed');
-    err.response = { data };
-    throw err;
-  }
-  return res.json().catch(() => ({}));
-}
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resetToken, setResetToken] = useState('');
 
   const onChange = (e) => setEmail(e.target.value);
 
@@ -33,7 +18,11 @@ export default function ForgotPassword() {
     setError('');
     setPending(true);
     try {
-      await requestPasswordReset(email);
+      const { data } = await api.post('/users/password-reset/', { email });
+      // In development, the token is returned in the response
+      if (data.token) {
+        setResetToken(data.token);
+      }
       setSent(true);
     } catch (err) {
       const detail = err.response?.data?.detail;
@@ -53,7 +42,11 @@ export default function ForgotPassword() {
           <span>
             Згадав пароль?{' '}
             <Link to="/login" className={form.link}>
-              Увійти
+        {resetToken && (
+          <div style={{ wordBreak: 'break-all', fontSize: '12px', background: '#f0f0f0', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
+            <strong>Dev token:</strong> {resetToken}
+          </div>
+        )}війти
             </Link>
           </span>
         }

@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
+import PasswordResetConfirm from './pages/Auth/PasswordResetConfirm';
 import Home from './pages/Home/Home';
 import WelcomeScreen from './pages/Welcome/WelcomeScreen';
 import './styles/tokens.css';
@@ -20,6 +21,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/password-reset" element={<PasswordResetConfirm />} />
         </Route>
 
         {/* Залогінений юзер: усе, що під /home, доступне лише після входу. */}

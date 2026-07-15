@@ -8,29 +8,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authFailed, setAuthFailed] = useState(false);
   const authBootstrapPromiseRef = useRef(null);
+  const hasRunBootstrap = useRef(false);
 
   const loadMe = async () => {
-    if (authBootstrapPromiseRef.current) {
-      return authBootstrapPromiseRef.current;
-    }
-
-    authBootstrapPromiseRef.current = (async () => {
-      try {
-        const { data } = await api.get('/users/me/');
-        setUser(data);
-        setAuthFailed(false);
-      } catch {
-        setUser(null);
-        setAuthFailed(true);
-      } finally {
-        setLoading(false);
-      }
-    })();
-
     try {
-      await authBootstrapPromiseRef.current;
+      const { data } = await api.get('/users/me/');
+      setUser(data);
+      setAuthFailed(false);
+    } catch {
+      setUser(null);
+      setAuthFailed(true);
     } finally {
-      authBootstrapPromiseRef.current = null;
+      setLoading(false);
     }
   };
 
@@ -40,9 +29,14 @@ export function AuthProvider({ children }) {
       setAuthFailed(true);
     });
 
-    // Keep the initial auth check single-flight so StrictMode in development
-    // cannot trigger duplicate /me/ and refresh requests at the same time.
-    void loadMe();
+    // Run bootstrap only once per app mount to avoid race conditions from
+    // StrictMode double-mounting or rapid re-renders
+    if (!hasRunBootstrap.current) {
+      hasRunBootstrap.current = true;
+      if (!authBootstrapPromiseRef.current) {
+        authBootstrapPromiseRef.current = loadMe();
+      }
+    }
   }, []);
 
   const login = async (login, password) => {
@@ -50,6 +44,7 @@ export function AuthProvider({ children }) {
     setAuthFailed(false);
     const { data } = await api.post('/users/login/', { username: login, password });
     setAccessToken(data.access);
+    // Fetch user details after setting access token
     await loadMe();
   };
 
