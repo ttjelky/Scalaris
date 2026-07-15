@@ -1,0 +1,55 @@
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--color-bg);
+}
+
+.card {
+  max-width: 380px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(28px, 8vw, 36px);
+  color: var(--color-ink);
+}
+
+.subtitle {
+  margin: 12px 0 24px;
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+.logout {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 14px 24px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logout:hover {
+  background: var(--color-line);
+}
