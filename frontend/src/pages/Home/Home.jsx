@@ -10,7 +10,6 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 import { useAuth } from '../../context/AuthContext';
-import NearbyMap from '../../components/Map/Nearbymap';
 import styles from './Home.module.css';
 
 L.Icon.Default.mergeOptions({
