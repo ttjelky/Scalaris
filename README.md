@@ -12,11 +12,13 @@ Mobile-first app for organizing backyard activities with friends.
 
 Install these before doing anything else:
 
-| Git |
-| Docker Desktop | **must be running** (see Troubleshooting if it isn't) |
-| Python 3.12 | (other versions may not work with the pinned dependencies) |
-| GDAL + GEOS | (system libraries, required by GeoDjango — see §3) |
-| Node.js 20+ | (for the frontend) |
+| Tool | Version | Notes |
+|---|---|---|
+| Git | any | |
+| Docker Desktop | any | **must be running** (see Troubleshooting if it isn't) |
+| Python | 3.12 | other versions may not work with the pinned dependencies |
+| GDAL + GEOS | any recent | system libraries, required by GeoDjango — see §3 |
+| Node.js | 20+ | for the frontend |
 
 ---
 
