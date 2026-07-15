@@ -8,6 +8,7 @@ import re
 from decouple import config
 import sys
 import platform
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -157,6 +158,16 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 
 STATIC_URL = 'static/'
 

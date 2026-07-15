@@ -42,16 +42,25 @@ export default function ForgotPassword() {
           <span>
             Згадав пароль?{' '}
             <Link to="/login" className={form.link}>
-        {resetToken && (
-          <div style={{ wordBreak: 'break-all', fontSize: '12px', background: '#f0f0f0', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
-            <strong>Dev token:</strong> {resetToken}
-          </div>
-        )}війти
+              Увійти
             </Link>
           </span>
         }
       >
-        <div />
+        {resetToken && (
+          <div
+            style={{
+              wordBreak: 'break-all',
+              fontSize: '12px',
+              background: '#f0f0f0',
+              padding: '12px',
+              borderRadius: '8px',
+              marginBottom: '12px',
+            }}
+          >
+            <strong>Dev token:</strong> {resetToken}
+          </div>
+        )}
       </AuthLayout>
     );
   }

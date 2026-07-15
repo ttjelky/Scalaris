@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -87,15 +89,26 @@ class PasswordResetView(APIView):
         reset_token = PasswordResetToken.for_user(user)
         reset_token['email'] = str(user.email)
 
-        return Response(
-            {
-                'detail': 'Password reset link sent.',
-                # In development, return the token in the response so testing is easier.
-                # In production, send this token via email and return only the email confirmation.
-                'token': str(reset_token),
-            },
-            status=status.HTTP_200_OK,
+        reset_link = f'{settings.FRONTEND_URL}/password-reset?token={reset_token}'
+
+        send_mail(
+            subject='Відновлення паролю',
+            message=(
+                'Ви (або хтось інший) запросили відновлення паролю.\n\n'
+                f'Перейдіть за посиланням, щоб встановити новий пароль:\n{reset_link}\n\n'
+                'Посилання дійсне 1 годину. Якщо ви не робили цей запит, просто проігноруйте лист.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
         )
+
+        response_data = {'detail': 'Password reset link sent.'}
+        if settings.DEBUG:
+            # Only expose the raw token in development so testing is easier.
+            response_data['token'] = str(reset_token)
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
