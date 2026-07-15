@@ -1,0 +1,138 @@
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px 24px;
+  background: var(--color-bg);
+}
+
+.logo {
+  height: 20px;
+  width: auto;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--color-ink);
+}
+
+.backArrow {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.header {
+  padding-top: 24px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: condensed;
+  text-transform: uppercase;
+  font-size: clamp(34px, 10vw, 46px);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.subtitle {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--color-ink-soft);
+  max-width: 34ch;
+}
+
+/* Signature element: a track lane that "runs" while a request is pending */
+.lane {
+  position: relative;
+  height: 3px;
+  margin: 28px 0 24px;
+  border-radius: var(--radius-pill);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-line) 0 10px,
+    transparent 10px 18px
+  );
+}
+
+.laneDot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-line);
+  transform: translate(-50%, -50%);
+  transition: background 0.2s var(--ease-track);
+}
+
+.laneActive .laneDot {
+  background: var(--color-accent);
+  animation: run 1.1s var(--ease-track) infinite;
+}
+
+@keyframes run {
+  0% {
+    left: 0%;
+    background: var(--color-accent);
+  }
+  50% {
+    background: var(--color-volt);
+  }
+  100% {
+    left: 100%;
+    background: var(--color-accent);
+  }
+}
+
+.card {
+  flex: 1;
+}
+
+.footer {
+  padding-top: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-ink-soft);
+}
+
+/* Slightly roomier on tablet/desktop, still one column — this flow stays mobile-first */
+@media (min-width: 480px) {
+  .screen {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+}

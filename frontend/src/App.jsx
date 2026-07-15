@@ -1,28 +1,33 @@
-import { useEffect, useState } from 'react';
-import Users from './components/Users/Users';
-
+import { Navigate, Route, Routes } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicOnlyRoute from './components/PublicOnlyRoute';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+import Home from './pages/Home/Home';
+import WelcomeScreen from './pages/Welcome/WelcomeScreen';
+import './styles/tokens.css';
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/users/')
-      .then((res) => {
-        if (!res.ok) throw new Error('Помилка запиту до API');
-        return res.json();
-      })
-      .then((data) => setUsers(data))
-      .catch((err) => setError(err.message));
-  }, []);
-
   return (
-    <div>
-      <div>
-        <h1>Scalaris</h1>
-        <Users />
-      </div>
-    </div>
+    <AuthProvider>
+      <Routes>
+        {/* Незалогінений юзер: Welcome -> Реєстрація/Вхід.
+            Якщо він вже залогінений і тицьне сюди напряму — відправляємо в /home. */}
+        <Route element={<PublicOnlyRoute />}>
+          <Route path="/" element={<WelcomeScreen />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
+
+        {/* Залогінений юзер: усе, що під /home, доступне лише після входу. */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/home" element={<Home />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 

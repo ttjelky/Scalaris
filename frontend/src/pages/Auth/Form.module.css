@@ -1,0 +1,115 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0; /* lets grid children shrink instead of overflowing the row */
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Very narrow phones (old SE-size screens etc.) — drop back to one column */
+@media (max-width: 340px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.input {
+  appearance: none;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 16px 16px;
+  font-size: 16px; /* keeps iOS from auto-zooming on focus */
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  transition: border-color 0.15s var(--ease-track), background 0.15s var(--ease-track);
+}
+
+.input::placeholder {
+  color: #b7b7b3;
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--color-ink);
+  background: var(--color-bg);
+}
+
+.inputError {
+  border-color: var(--color-danger);
+}
+
+.fieldError {
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.formError {
+  border: 1px solid var(--color-danger);
+  background: #fdeceb;
+  color: var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.submit {
+  margin-top: 8px;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 17px 20px;
+  background: var(--color-ink);
+  color: var(--color-bg);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-track), background 0.15s var(--ease-track);
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit:disabled {
+  background: var(--color-line);
+  color: var(--color-ink-soft);
+  cursor: not-allowed;
+}
+
+.link {
+  color: var(--color-ink);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.link:hover {
+  border-bottom-color: var(--color-ink);
+}
