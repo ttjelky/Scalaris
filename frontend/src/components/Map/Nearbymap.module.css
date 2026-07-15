@@ -1,0 +1,310 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+/* Прибираємо стандартний білий фон тайлів Leaflet, щоб не блимало під час завантаження */
+.map :global(.leaflet-tile-pane) {
+  filter: saturate(0.85) contrast(1.02);
+}
+
+.map :global(.leaflet-container) {
+  background: var(--color-surface);
+  font-family: inherit;
+}
+
+.map :global(.leaflet-popup-content-wrapper),
+.map :global(.leaflet-popup-tip) {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.map :global(.leaflet-popup-content) {
+  margin: 0;
+  width: auto !important;
+}
+
+/* ---------- Стан завантаження / дозволів ---------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--color-bg);
+  z-index: 500;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.overlayCard {
+  max-width: 340px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--color-line);
+  border-top-color: var(--color-accent);
+  animation: spin 0.9s linear infinite;
+}
+
+.overlayTitle {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 20px;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.overlayText {
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+  margin: 0;
+  font-size: 14px;
+}
+
+.overlayButton {
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 12px 22px;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.overlayButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.overlayButton:active {
+  transform: translateY(0);
+}
+
+/* ---------- Маркер поточного користувача ---------- */
+
+.selfMarker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 3px solid var(--color-bg);
+  box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.55);
+  animation: selfPulse 2.4s ease-out infinite;
+}
+
+@keyframes selfPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(217, 119, 87, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0);
+  }
+}
+
+/* ---------- Маркери інших користувачів ---------- */
+
+.userMarker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  border: 2px solid var(--color-line);
+  color: var(--color-ink);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transform: scale(0.9);
+  animation: markerIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.userMarker:hover {
+  border-color: var(--color-accent);
+  transform: scale(1.08);
+}
+
+@keyframes markerIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------- Міні-картка користувача (попап) ---------- */
+
+.card {
+  width: 220px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  animation: cardIn 0.2s ease-out;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+}
+
+.cardName {
+  margin: 0;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+
+.cardDistance {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-ink-soft);
+}
+
+.inviteButton {
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 10px 16px;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.inviteButton:hover {
+  filter: brightness(1.08);
+}
+
+.inviteButton:active {
+  transform: scale(0.97);
+}
+
+.inviteButton[disabled] {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+/* ---------- Тост-повідомлення про відправлене запрошення ---------- */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  z-index: 600;
+  animation: toastIn 0.25s ease-out, toastOut 0.25s ease-in 2.5s forwards;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selfMarker,
+  .userMarker,
+  .overlay,
+  .card,
+  .toast,
+  .spinner {
+    animation: none !important;
+  }
+}

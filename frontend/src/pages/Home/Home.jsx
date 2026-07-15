@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import NearbyMap from '../../components/Map/Nearbymap';
 import styles from './Home.module.css';
 
 /**
- * Тимчасовий екран для залогіненого користувача.
- * Заміни на реальний feed/карту, коли будете готові —
- * головне, щоб він і надалі жив під /home під ProtectedRoute.
+ * Головний екран для залогіненого користувача.
+ * Карта займає весь екран, зверху — плаваюча панель з привітанням і виходом.
  */
 export default function Home() {
   const { user, logout } = useAuth();
@@ -18,16 +18,17 @@ export default function Home() {
 
   return (
     <div className={styles.screen}>
-      <div className={styles.card}>
-        <span className={styles.eyebrow}>Ти в клубі</span>
-        <h1 className={styles.title}>Привіт, {user?.username}!</h1>
-        <p className={styles.subtitle}>
-          Тут з'явиться карта та стрічка активностей. А поки — усе працює: реєстрація, вхід, оновлення токена.
-        </p>
+      <NearbyMap />
+
+      <header className={styles.topBar}>
+        <div className={styles.greeting}>
+          <span className={styles.eyebrow}>Ти в клубі</span>
+          <p className={styles.username}>{user?.username}</p>
+        </div>
         <button className={styles.logout} onClick={handleLogout} type="button">
           Вийти
         </button>
-      </div>
+      </header>
     </div>
   );
 }
