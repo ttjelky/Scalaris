@@ -65,13 +65,13 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(to bottom, rgba(8, 9, 10, 0.4) 0%, rgba(8, 9, 10, 0) 22%),
+    linear-gradient(to bottom, rgba(8, 9, 10, 0.38) 0%, rgba(8, 9, 10, 0) 20%),
     linear-gradient(
       to bottom,
-      rgba(10, 11, 13, 0.15) 0%,
-      rgba(10, 11, 13, 0.05) 35%,
-      rgba(10, 11, 13, 0.55) 70%,
-      rgba(8, 9, 10, 0.96) 100%
+      rgba(8, 9, 10, 0) 0%,
+      rgba(8, 9, 10, 0.05) 40%,
+      rgba(8, 9, 10, 0.65) 72%,
+      rgba(6, 7, 8, 0.95) 100%
     );
   pointer-events: none;
 }
@@ -83,9 +83,9 @@
 }
 
 .logo {
-  height: 50px;
+  height: 46px;
   width: auto;
-  filter: brightness(0) invert(1);
+  filter: brightness(0) invert(1) drop-shadow(0 1px 8px rgba(0, 0, 0, 0.45));
 }
 
 .content {
@@ -94,23 +94,17 @@
   padding: 0 24px max(28px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .liveBadge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  align-self: flex-start;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(6px);
-  font-size: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .pulseDot {
@@ -141,16 +135,15 @@
 }
 
 .title {
-  margin: 0;
-  font-family: 'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
-  font-size: clamp(30px, 10vw, 48px);
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
+  margin: 0 0 4px;
+  font-weight: 800;
+  font-size: clamp(28px, 8.5vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
-  margin: 0;
+  margin: 0 0 20px;
   max-width: 30ch;
   font-size: 16px;
   line-height: 1.4;
@@ -159,18 +152,18 @@
 
 .actions {
   display: flex;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 10px;
+  align-self: flex-start;
 }
 
 .button {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 52px;
+  height: 50px;
+  padding: 0 24px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   text-decoration: none;
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease,
@@ -212,16 +205,5 @@
     padding-left: 32px;
     padding-right: 32px;
     padding-bottom: 40px;
-    gap: 20px;
-  }
-
-  .actions {
-    align-self: flex-start;
-    width: auto;
-  }
-
-  .button {
-    flex: none;
-    padding: 0 32px;
   }
 }
