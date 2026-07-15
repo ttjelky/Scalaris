@@ -16,9 +16,10 @@ export default defineConfig({
     proxy: {
       // Усі запити, які починаються з /api, Vite буде перенаправляти на Django
       '/api': {
-        target: 'http://192.168.0.106:8000', // IP вашого комп'ютера і порт бекенду
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
+        ws: true,
       }
     }
   }

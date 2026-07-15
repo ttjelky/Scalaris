@@ -4,7 +4,14 @@ import { useAuth } from '../context/AuthContext';
 export default function PublicOnlyRoute() {
   const { isAuthenticated, loading } = useAuth();
 
-  if (loading) return null; // or a splash/spinner
+  if (loading) {
+    return (
+      <div className="auth-loading-screen">
+        <div className="auth-loading-screen__spinner" />
+        <p>Checking your session…</p>
+      </div>
+    );
+  }
 
   return isAuthenticated ? <Navigate to="/home" replace /> : <Outlet />;
 }

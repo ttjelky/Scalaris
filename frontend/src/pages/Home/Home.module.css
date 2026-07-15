@@ -1,11 +1,14 @@
 .screen {
   position: relative;
-  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
   overflow: hidden;
   background: var(--color-bg);
 }
 
-.topBar {
+.topbar {
   position: absolute;
   top: 0;
   left: 0;
@@ -50,7 +53,7 @@
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
 }
 
-.logout {
+.logoutButton {
   border: none;
   border-radius: var(--radius-pill);
   padding: 10px 18px;
@@ -72,6 +75,7 @@
 .mapWrap {
   position: relative;
   flex: 1;
+  width: 100%;
   min-height: 0;
 }
 
@@ -132,7 +136,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .topBar {
+  .topbar {
     animation: none;
   }
 }

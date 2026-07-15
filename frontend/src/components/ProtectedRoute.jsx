@@ -5,11 +5,18 @@ export default function ProtectedRoute() {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return null; // or a splash/spinner
+  if (loading) {
+    return (
+      <div className="auth-loading-screen">
+        <div className="auth-loading-screen__spinner" />
+        <p>Checking your session…</p>
+      </div>
+    );
+  }
 
   return isAuthenticated ? (
     <Outlet />
   ) : (
-    <Navigate to="/" replace state={{ from: location }} />
+    <Navigate to="/login" replace state={{ from: location }} />
   );
 }

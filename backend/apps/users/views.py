@@ -30,10 +30,12 @@ class UserDetailView(generics.RetrieveAPIView):
 
 
 class LogoutView(APIView):
-    """Blacklists the refresh token (read from its httpOnly cookie, never
-    from the request body/JS) and clears the cookie either way, so the
-    client always ends up logged out even if the token was already dead."""
-    permission_classes = [permissions.IsAuthenticated]
+    """Blacklists the refresh token when present, then clears the cookie.
+
+    This intentionally accepts anonymous requests so a stale/expired access
+    token cannot block logout from the browser. The refresh cookie is still
+    removed even when no valid token is available."""
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME)

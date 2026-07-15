@@ -36,10 +36,9 @@ let refreshPromise = null;
 
 function refreshAccessToken() {
   if (!refreshPromise) {
-    // Relative path — goes through the Vite proxy, same as every other
-    // request. A hardcoded absolute URL here would resolve against
-    // whatever device runs this JS (e.g. "localhost" on the phone itself),
-    // not against the dev machine, and would also miss CORS_ALLOWED_ORIGINS.
+    // The refresh call intentionally uses the bare axios client here so the
+    // interceptor does not try to re-enter itself while the cookie-based
+    // refresh request is still in flight.
     refreshPromise = axios
       .post(
         '/api/users/login/refresh/',
@@ -49,6 +48,10 @@ function refreshAccessToken() {
       .then(({ data }) => {
         setAccessToken(data.access);
         return data.access;
+      })
+      .catch((error) => {
+        clearAccessToken();
+        throw error;
       })
       .finally(() => {
         refreshPromise = null;

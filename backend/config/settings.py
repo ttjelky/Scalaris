@@ -71,13 +71,23 @@ TEMPLATES = [
     },
 ]
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 # --- CORS ---
+CORS_ALLOWED_ORIGINS = [
+    'https://localhost:5174',
+    'https://127.0.0.1:5174',
+]
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^https://localhost:\d+$',
     r'^https://127\.0\.0\.1:\d+$',
     r'^https://192\.168\.\d{1,3}\.\d{1,3}:\d+$',
 ]
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [
+    'https://localhost:5174',
+    'https://127.0.0.1:5174',
+]
 # --- Media (avatar) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -103,8 +113,8 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_COOKIE': 'refresh_token',
-    'AUTH_COOKIE_PATH': '/api/users/',
-    'AUTH_COOKIE_SECURE': not DEBUG,
+    'AUTH_COOKIE_PATH': '/',
+    'AUTH_COOKIE_SECURE': config('AUTH_COOKIE_SECURE', default='False').lower() == 'true',
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
