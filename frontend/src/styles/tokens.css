@@ -29,10 +29,16 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  height: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {

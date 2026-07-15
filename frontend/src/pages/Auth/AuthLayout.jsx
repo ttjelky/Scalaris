@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import logo from '../../assets/scalaris-logo.svg';
+import useDocumentBackground from '../../hooks/useDocumentBackground';
 import styles from './AuthLayout.module.css';
 
 export default function AuthLayout({ eyebrow, title, subtitle, children, footer, pending }) {
+  useDocumentBackground('#ffffff');
+
   return (
     <div className={styles.screen}>
       <div className={styles.topBar}>

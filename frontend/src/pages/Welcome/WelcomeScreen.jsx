@@ -1,19 +1,49 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/scalaris-logo.svg';
+import useDocumentBackground from '../../hooks/useDocumentBackground';
+import useSlideshow from '../../hooks/useSlideshow';
 import styles from './WelcomeScreen.module.css';
 
-/**
- * Вітальний екран для незалогіненого користувача.
- *
- * backgroundImage — url свого фото (street-активність, не Nike-скрін!).
- * Якщо не передати — використовується темний градієнт-плейсхолдер.
- */
-export default function WelcomeScreen({ backgroundImage, activeNearby = 128 }) {
+import slide1 from '../../assets/welcome/street-1.webp';
+import slide2 from '../../assets/welcome/street-2.webp';
+import slide3 from '../../assets/welcome/street-3.webp';
+import slide4 from '../../assets/welcome/street-4.webp';
+
+const DEFAULT_SLIDES = [slide1, slide2, slide3, slide4];
+
+export default function WelcomeScreen({ images, backgroundImage, activeNearby = 128 }) {
+  useDocumentBackground('#0e0e10');
+
+  // Back-compat: a single `backgroundImage` still works (wrapped as a
+  // 1-item, non-animating "slideshow"); otherwise use the provided/default
+  // slide set.
+  const slides = images ?? (backgroundImage ? [backgroundImage] : DEFAULT_SLIDES);
+
+  const reduceMotion = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+
+  const activeIndex = useSlideshow(slides.length, {
+    intervalMs: 5000,
+    enabled: !reduceMotion,
+  });
+
   return (
-    <div
-      className={styles.screen}
-      style={backgroundImage ? { '--bg-image': `url(${backgroundImage})` } : undefined}
-    >
+    <div className={styles.screen}>
+      <div className={styles.slideshow} aria-hidden="true">
+        {slides.map((src, i) => (
+          <div
+            key={src}
+            className={styles.slide}
+            style={{ backgroundImage: `url(${src})`, opacity: i === activeIndex ? 1 : 0 }}
+          />
+        ))}
+      </div>
+
       <div className={styles.overlay} />
 
       <header className={styles.header}>
