@@ -4,6 +4,7 @@ Django settings for config project.
 
 from datetime import timedelta
 from pathlib import Path
+import re
 from decouple import config
 import sys
 import platform
@@ -71,12 +72,12 @@ TEMPLATES = [
 ]
 
 # --- CORS ---
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://localhost:\d+$',
+    r'^https://127\.0\.0\.1:\d+$',
+    r'^https://192\.168\.\d{1,3}\.\d{1,3}:\d+$',
 ]
 CORS_ALLOW_CREDENTIALS = True
-
 # --- Media (avatar) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
