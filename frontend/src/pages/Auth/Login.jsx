@@ -82,6 +82,12 @@ export default function Login() {
           />
         </label>
 
+        <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+          <Link to="/forgot-password" className={form.link} style={{ fontSize: '13px' }}>
+            Забули пароль?
+          </Link>
+        </div>
+
         <button className={form.submit} type="submit" disabled={pending}>
           {pending ? 'Заходимо…' : 'Вхід'}
         </button>

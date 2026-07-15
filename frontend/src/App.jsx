@@ -4,6 +4,7 @@ import PublicOnlyRoute from './components/PublicOnlyRoute';
 import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
+import ForgotPassword from './pages/Auth/ForgotPassword';
 import Home from './pages/Home/Home';
 import WelcomeScreen from './pages/Welcome/WelcomeScreen';
 import './styles/tokens.css';
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<WelcomeScreen />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Route>
 
         {/* Залогінений юзер: усе, що під /home, доступне лише після входу. */}
