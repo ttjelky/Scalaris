@@ -15,7 +15,11 @@ _JWT = settings.SIMPLE_JWT
 REFRESH_COOKIE_NAME = _JWT.get('AUTH_COOKIE', 'refresh_token')
 REFRESH_COOKIE_PATH = _JWT.get('AUTH_COOKIE_PATH', '/')
 REFRESH_COOKIE_SECURE = _JWT.get('AUTH_COOKIE_SECURE', True)
-REFRESH_COOKIE_SAMESITE = _JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
+# 'Strict' instead of 'Lax': this cookie is only ever needed on same-site
+# XHR calls from our own frontend (refresh/logout), never on a top-level
+# cross-site navigation, so there's no reason to relax it to 'Lax' and
+# accept the extra CSRF surface that comes with it.
+REFRESH_COOKIE_SAMESITE = _JWT.get('AUTH_COOKIE_SAMESITE', 'Strict')
 REFRESH_COOKIE_DOMAIN = _JWT.get('AUTH_COOKIE_DOMAIN', None)
 
 

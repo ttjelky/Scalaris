@@ -205,8 +205,86 @@
   border-radius: 28px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
   padding: 16px 18px max(16px, env(safe-area-inset-bottom));
-  max-height: 42%;
+  /* Expanded is the default shape: a tall panel with plenty of room for the
+     list. Collapsed doesn't need its own max-height override — its content
+     shrinks to ~0 via .collapsibleContent, so it naturally sits well under
+     this cap regardless. */
+  max-height: 80dvh;
   overflow-y: auto;
+  /* Smooth, no-overshoot deceleration for size/shape changes (an overshoot
+     here would make list content look like it's briefly clipping), but a
+     springy little overshoot on the drag-release snap-back (transform) for
+     a bit of life. */
+  transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* While actively dragging, kill the transition so the sheet tracks the
+   pointer 1:1 instead of lagging behind it. Also drop the blur strength
+   and promote the element to its own compositor layer — recomputing a
+   20px backdrop-filter blur on every dragged frame was the main source
+   of the jank/heaviness. */
+.sheetDragging {
+  transition: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  will-change: transform;
+}
+
+/* Collapsed = small pill badge that gets out of the map's way. The content
+   below the header shrinks via .collapsibleContent, this just restyles
+   the shell + hero row to a compact pill. */
+.sheetCollapsed {
+  padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+}
+
+.sheetCollapsed .heroRow {
+  align-items: center;
+}
+
+.sheetCollapsed .heroTitle {
+  font-size: 20px;
+}
+
+.sheetCollapsed .heroBadge {
+  min-width: 48px;
+  height: 48px;
+}
+
+.sheetCollapsed .heroBadgeValue {
+  font-size: 1.05rem;
+}
+
+.sheetCollapsed .heroBadgeLabel {
+  font-size: 0.55rem;
+}
+
+/* Handle + hero row: tapping anywhere here (without dragging) toggles
+   collapsed/expanded, in addition to the handle's drag gesture. */
+.sheetHeader {
+  cursor: pointer;
+}
+
+/* Collapses the hero-row's siblings smoothly by animating an intrinsic
+   grid row (1fr -> 0fr) instead of toggling display or max-height, so the
+   box height and the content height always stay in lockstep. */
+.collapsibleContent {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.collapsibleContentHidden {
+  grid-template-rows: 0fr;
+}
+
+.collapsibleInner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .sheetHandle {
@@ -214,7 +292,21 @@
   height: 4px;
   border-radius: var(--radius-pill, 999px);
   background: var(--color-line, #e5e5e5);
-  margin: 0 auto 16px;
+  background-clip: content-box;
+  margin: -10px auto 6px;
+  /* Bigger invisible hit area than the visible bar makes it easier to grab. */
+  padding: 10px 24px;
+  box-sizing: content-box;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheetCollapsed .sheetHandle {
+  margin-bottom: 8px;
+}
+
+.sheetHandle:active {
+  cursor: grabbing;
 }
 
 .heroRow {
@@ -256,12 +348,6 @@
   background: var(--color-accent, #c6ff3d);
   color: var(--color-ink, #0b0b0c);
   flex-shrink: 0;
-}
-
-.heroBadgeValue {
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1;
 }
 
 .heroBadgeLabel {
@@ -341,6 +427,19 @@
   .laneDot {
     animation: none;
   }
+  .pulseDotActive {
+    animation: none;
+  }
+  .heroBadgeValue {
+    animation: none;
+  }
+  .userCard {
+    animation: none;
+  }
+  .scrim,
+  .sheet {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (min-width: 480px) {
@@ -348,4 +447,82 @@
     max-width: 480px;
     margin: 0 auto;
   }
+}
+
+/* Soft dimming layer behind the expanded sheet — gives it real depth over
+   the map and doubles as a big "tap anywhere to collapse" target. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 550;
+  background: rgba(11, 11, 12, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scrimVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The count "pops" whenever it changes, instead of silently updating —
+   makes new arrivals feel noticed. Retriggered by remounting the span
+   with a fresh `key` in JSX. */
+@keyframes badgePop {
+  0% {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  65% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.heroBadgeValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-block;
+  animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Cards cascade in one after another when the sheet opens, instead of
+   appearing all at once. */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.userCard {
+  animation: cardIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.userCard:nth-child(1) {
+  animation-delay: 0.04s;
+}
+.userCard:nth-child(2) {
+  animation-delay: 0.09s;
+}
+.userCard:nth-child(3) {
+  animation-delay: 0.14s;
+}
+.userCard:nth-child(4) {
+  animation-delay: 0.19s;
+}
+.userCard:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.userCard:nth-child(n + 6) {
+  animation-delay: 0.28s;
 }

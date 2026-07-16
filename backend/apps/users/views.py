@@ -1,8 +1,12 @@
+import hashlib
 from datetime import timedelta
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
@@ -24,10 +28,31 @@ class PasswordResetToken(Token):
     lifetime = timedelta(hours=1)
 
 
+def _password_fingerprint(user):
+    """Short fingerprint of the user's current password hash.
+
+    Embedded in every reset token and re-checked on confirm. Since
+    `user.password` changes the moment the password is reset, this makes
+    the token single-use for free: reusing an already-used (or since
+    superseded) token will fail the fingerprint check even though the JWT
+    signature itself is still technically valid until it expires.
+    """
+    return hashlib.sha256(user.password.encode()).hexdigest()[:16]
+
+
+class RegisterRateThrottle(AnonRateThrottle):
+    scope = 'register'
+
+
+class PasswordResetRateThrottle(AnonRateThrottle):
+    scope = 'password_reset'
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegisterRateThrottle]
 
 
 class MeView(generics.RetrieveUpdateAPIView):
@@ -66,36 +91,50 @@ class LogoutView(APIView):
 
 
 class PasswordResetView(APIView):
-    """Initiate password reset: send a reset token (in dev, returned in response)."""
+    """Initiate password reset: send a reset token (in dev, returned in response).
+
+    Always returns the same 200 + generic message regardless of whether the
+    email exists, so the endpoint can't be used to enumerate registered
+    accounts (previously the serializer raised 400 for unknown emails,
+    which leaked exactly that)."""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRateThrottle]
 
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         email = serializer.validated_data['email']
-        try:
-            user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            # Return the same response for security (don't leak email existence)
-            return Response(
-                {'detail': 'If an account with this email exists, you will receive a password reset link.'},
-                status=status.HTTP_200_OK,
+
+        response_data = {
+            'detail': 'Якщо акаунт з такою поштою існує, на неї надіслано лист для відновлення паролю.'
+        }
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user is not None:
+            reset_token = PasswordResetToken.for_user(user)
+            reset_token['email'] = str(user.email)
+            reset_token['pwd_fp'] = _password_fingerprint(user)
+
+            reset_link = f'{settings.FRONTEND_URL}/password-reset?token={reset_token}'
+
+            send_mail(
+                subject='Відновлення паролю',
+                message=(
+                    'Ви (або хтось інший) запросили відновлення паролю.\n\n'
+                    f'Перейдіть за посиланням, щоб встановити новий пароль:\n{reset_link}\n\n'
+                    'Посилання дійсне 1 годину і діє лише один раз. '
+                    'Якщо ви не робили цей запит, просто проігноруйте лист.'
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
             )
 
-        # Generate a password reset token
-        reset_token = PasswordResetToken.for_user(user)
-        reset_token['email'] = str(user.email)
+            if settings.DEBUG:
+                # Only expose the raw token in development so testing is easier.
+                response_data['token'] = str(reset_token)
 
-        return Response(
-            {
-                'detail': 'Password reset link sent.',
-                # In development, return the token in the response so testing is easier.
-                # In production, send this token via email and return only the email confirmation.
-                'token': str(reset_token),
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
@@ -124,6 +163,15 @@ class PasswordResetConfirmView(APIView):
             return Response(
                 {'detail': 'User not found.'},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Reject a token that's already been used (or superseded by a newer
+        # reset request): the fingerprint only matches the password that
+        # was current at the moment the token was issued.
+        if reset_token.get('pwd_fp') != _password_fingerprint(user):
+            return Response(
+                {'detail': 'Invalid or expired reset token.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         user.set_password(new_password)

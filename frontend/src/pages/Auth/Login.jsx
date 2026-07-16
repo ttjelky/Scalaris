@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { parseApiError } from '../../utils/apiErrors';
 import AuthLayout from './AuthLayout';
 import form from './Form.module.css';
 
@@ -14,7 +15,10 @@ export default function Login() {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
-  const onChange = (e) => setValues((v) => ({ ...v, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    setValues((v) => ({ ...v, [e.target.name]: e.target.value }));
+    if (error) setError('');
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -24,8 +28,10 @@ export default function Login() {
       await login(values.login, values.password);
       navigate(from, { replace: true });
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      setError(detail || 'Неправильний email/юзернейм або пароль. Спробуй ще раз.');
+      const { generalError } = parseApiError(err, {
+        fallback: 'Неправильний email/юзернейм або пароль. Спробуй ще раз.',
+      });
+      setError(generalError);
     } finally {
       setPending(false);
     }

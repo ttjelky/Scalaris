@@ -22,6 +22,11 @@ const personIcon = L.divIcon({
   iconAnchor: [6, 6],
 });
 
+// How far (px) the sheet has to be dragged before it snaps
+// collapsed/expanded instead of springing back.
+const COLLAPSE_THRESHOLD = 56;
+const EXPAND_THRESHOLD = 32;
+
 function RecenterOnMove({ position }) {
   const map = useMap();
   useEffect(() => {
@@ -37,6 +42,94 @@ export default function Home() {
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // --- Draggable bottom sheet state -------------------------------------
+  // Only two positions now: 'collapsed' (small badge) and 'expanded' (panel
+  // covering more than half the screen). Toggled by dragging the handle OR
+  // tapping the header (handle + hero row).
+  //
+  // The drag itself is intentionally kept OUT of React state: updating
+  // state on every pointermove forced a re-render (and a recompute of the
+  // sheet's backdrop-filter blur) on every single frame, which is what made
+  // dragging feel heavy/laggy. Instead we write the transform straight to
+  // the DOM node via a ref, throttled to one update per animation frame.
+  // React only steps back in once, when the finger lifts.
+  const [sheetState, setSheetState] = useState('expanded');
+  const [isDragging, setIsDragging] = useState(false);
+  const sheetRef = useRef(null);
+  const dragStartY = useRef(0);
+  const dragYRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const rafRef = useRef(null);
+  const hasDragged = useRef(false);
+
+  const applyDragTransform = () => {
+    rafRef.current = null;
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = dragYRef.current
+        ? `translateY(${dragYRef.current}px)`
+        : '';
+    }
+  };
+
+  const handlePointerDown = (e) => {
+    dragStartY.current = e.clientY;
+    dragYRef.current = 0;
+    hasDragged.current = false;
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDraggingRef.current) return;
+    const delta = e.clientY - dragStartY.current;
+    if (Math.abs(delta) > 4) hasDragged.current = true;
+
+    // Collapsed can only be dragged up (towards expanded), expanded can
+    // only be dragged down (towards collapsed) — there's nowhere else to go.
+    const clamped = sheetState === 'collapsed' ? Math.min(0, delta) : Math.max(0, delta);
+
+    dragYRef.current = clamped;
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(applyDragTransform);
+    }
+  };
+
+  const finishDrag = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (sheetRef.current) sheetRef.current.style.transform = '';
+
+    const dragY = dragYRef.current;
+    dragYRef.current = 0;
+
+    if (sheetState === 'expanded' && dragY > COLLAPSE_THRESHOLD) {
+      setSheetState('collapsed');
+    } else if (sheetState === 'collapsed' && dragY < -EXPAND_THRESHOLD) {
+      setSheetState('expanded');
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    },
+    []
+  );
+
+  const handleHeaderClick = () => {
+    // A tap (not a drag) on the handle/hero row toggles the sheet.
+    if (hasDragged.current) return;
+    setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
+  };
+  // ------------------------------------------------------------------------
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -95,6 +188,13 @@ export default function Home() {
       mapRef.current.setView(position, mapRef.current.getZoom(), { animate: true });
     }
   };
+  const sheetClassName = [
+    styles.sheet,
+    sheetState === 'collapsed' && styles.sheetCollapsed,
+    isDragging && styles.sheetDragging,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className={styles.screen}>
@@ -162,23 +262,49 @@ export default function Home() {
         )}
       </div>
 
-      <div className={styles.sheet}>
-        <div className={styles.sheetHandle} aria-hidden="true" />
+      <div
+        className={`${styles.scrim} ${sheetState === 'expanded' ? styles.scrimVisible : ''}`}
+        onClick={() => setSheetState('collapsed')}
+        aria-hidden="true"
+      />
 
-        <div className={styles.heroRow}>
-          <div>
-            <p className={styles.kicker}>Твоя зона активності</p>
-            <h1 className={styles.heroTitle}>Люди поруч</h1>
-          </div>
-          <div className={styles.heroBadge}>
-            <span className={styles.heroBadgeValue}>{nearbyCount}</span>
-            <span className={styles.heroBadgeLabel}>поруч</span>
+      <div ref={sheetRef} className={sheetClassName}>
+        <div className={styles.sheetHeader} onClick={handleHeaderClick}>
+          <div
+            className={styles.sheetHandle}
+            aria-hidden="true"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={finishDrag}
+            onPointerCancel={finishDrag}
+          />
+
+          <div className={styles.heroRow}>
+            <div>
+              <p className={styles.kicker}>Твоя зона активності</p>
+              <h1 className={styles.heroTitle}>Люди поруч</h1>
+            </div>
+            <div className={styles.heroBadge}>
+              <span key={nearbyCount} className={styles.heroBadgeValue}>
+                {nearbyCount}
+              </span>
+              <span className={styles.heroBadgeLabel}>поруч</span>
+            </div>
           </div>
         </div>
 
-        <p className={styles.heroText}>
-          Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
-        </p>
+        {/* Always mounted (not conditionally rendered) so collapsing/expanding
+            animates the actual content height via CSS grid instead of the
+            content just popping in/out while the shell tries to catch up. */}
+        <div
+          className={`${styles.collapsibleContent} ${
+            sheetState === 'collapsed' ? styles.collapsibleContentHidden : ''
+          }`}
+        >
+          <div className={styles.collapsibleInner}>
+            <p className={styles.heroText}>
+              Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
+            </p>
 
         <div className={styles.userList}>
           {nearbyUsers.length === 0 ? (
@@ -196,6 +322,24 @@ export default function Home() {
               </Link>
             ))
           )}
+            <div className={styles.userList} key={sheetState}>
+              {nearbyUsers.length === 0 ? (
+                <div className={styles.emptyState}>
+                  Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
+                </div>
+              ) : (
+                nearbyUsers.map((person) => (
+                  <div className={styles.userCard} key={person.id}>
+                    <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                    <div className={styles.userMeta}>
+                      <div className={styles.userName}>{person.username}</div>
+                      <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
