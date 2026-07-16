@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.serializers import UserPublicSerializer
+from apps.users.models import Block
 from .models import Activity, Invitation, Location
 from .serializers import (
     ActivityListSerializer,
@@ -39,12 +40,21 @@ class NearbyUsersView(APIView):
             )
 
         my_point = Point(lng, lat, srid=4326)
+
+        # Hide anyone I've blocked, and anyone who's blocked me — mutual,
+        # like the button in the profile says ("ви перестанете бачити
+        # одне одного"), not one-directional.
+        blocked_ids = Block.objects.filter(blocker=request.user).values_list('blocked_id', flat=True)
+        blocked_by_ids = Block.objects.filter(blocked=request.user).values_list('blocker_id', flat=True)
+        excluded_ids = set(blocked_ids) | set(blocked_by_ids)
+
         locations = (
             Location.objects.filter(
                 user__is_visible_on_map=True,
                 point__distance_lte=(my_point, D(km=radius_km)),
             )
             .exclude(user=request.user)
+            .exclude(user_id__in=excluded_ids)
             .select_related('user')
         )
 

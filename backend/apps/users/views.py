@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -12,11 +13,12 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie
-from .models import User
+from .models import Block, Report, User
 from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
     RegisterSerializer,
+    ReportSerializer,
     UserPublicSerializer,
     UserSerializer,
 )
@@ -67,6 +69,53 @@ class UserDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserPublicSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class BlockUserView(APIView):
+    """POST — заблокувати юзера (взаємно ховає одне одного на карті).
+    DELETE — розблокувати."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна заблокувати самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = get_object_or_404(User, pk=pk)
+        Block.objects.get_or_create(blocker=request.user, blocked=target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def delete(self, request, pk):
+        Block.objects.filter(blocker=request.user, blocked_id=pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockedUsersListView(generics.ListAPIView):
+    """GET — список юзерів, яких я заблокував."""
+    serializer_class = UserPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        blocked_ids = Block.objects.filter(blocker=self.request.user).values_list('blocked_id', flat=True)
+        return User.objects.filter(pk__in=blocked_ids)
+
+
+class ReportUserView(APIView):
+    """POST — поскаржитись на юзера (причина + опційні деталі)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна поскаржитись на самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = get_object_or_404(User, pk=pk)
+        serializer = ReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        Report.objects.create(reporter=request.user, reported=target, **serializer.validated_data)
+        return Response({'detail': 'Дякуємо, скаргу надіслано.'}, status=status.HTTP_201_CREATED)
 
 
 class LogoutView(APIView):

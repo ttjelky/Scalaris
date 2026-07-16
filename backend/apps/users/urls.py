@@ -2,11 +2,14 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    BlockedUsersListView,
+    BlockUserView,
     LogoutView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetView,
     RegisterView,
+    ReportUserView,
     UserDetailView,
 )
 from .token_views import EmailTokenObtainPairView, CookieTokenRefreshView
@@ -19,5 +22,8 @@ urlpatterns = [
     path('me/', MeView.as_view(), name='user-me'),
     path('password-reset/', PasswordResetView.as_view(), name='password-reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('blocked/', BlockedUsersListView.as_view(), name='user-blocked-list'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('<int:pk>/block/', BlockUserView.as_view(), name='user-block'),
+    path('<int:pk>/report/', ReportUserView.as_view(), name='user-report'),
 ]

@@ -27,6 +27,10 @@ export default function Profile() {
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  const [blocked, setBlocked] = useState(false);
+  const [togglingBlock, setTogglingBlock] = useState(false);
+  const [confirmingBlock, setConfirmingBlock] = useState(false);
+
   const onConfirmLogout = async () => {
     setLoggingOut(true);
     try {
@@ -50,6 +54,7 @@ export default function Profile() {
         if (cancelled) return;
         setProfile(data);
         setBioDraft(data.bio || '');
+        setBlocked(Boolean(data.is_blocked));
       })
       .catch(() => {
         if (!cancelled) setError('Не вдалося завантажити профіль.');
@@ -99,6 +104,24 @@ export default function Profile() {
     setAvatarFile(null);
     setAvatarPreview(null);
     setSaveError('');
+  };
+
+  const onToggleBlock = async () => {
+    setTogglingBlock(true);
+    try {
+      if (blocked) {
+        await api.delete(`/users/${id}/block/`);
+        setBlocked(false);
+      } else {
+        await api.post(`/users/${id}/block/`);
+        setBlocked(true);
+      }
+    } catch {
+      // best-effort — leave state as-is, the button just stays clickable to retry
+    } finally {
+      setTogglingBlock(false);
+      setConfirmingBlock(false);
+    }
   };
 
   if (loading) {
@@ -205,6 +228,19 @@ export default function Profile() {
             Вийти з акаунту
           </button>
         )}
+
+        {!isOwnProfile && (
+          <div className={styles.safetyActions}>
+            <button
+              className={styles.blockButton}
+              onClick={() => (blocked ? onToggleBlock() : setConfirmingBlock(true))}
+              type="button"
+              disabled={togglingBlock}
+            >
+              {blocked ? 'Розблокувати' : 'Заблокувати'}
+            </button>
+          </div>
+        )}
       </div>
 
       {confirmingLogout && (
@@ -228,6 +264,35 @@ export default function Profile() {
                 disabled={loggingOut}
               >
                 {loggingOut ? 'Виходимо…' : 'Так, вийти'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingBlock && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+          <div className={styles.modal}>
+            <h2 className={styles.modalTitle}>Заблокувати {profile.username}?</h2>
+            <p className={styles.modalText}>
+              Ви перестанете бачити одне одного на карті. Скасувати блокування можна будь-коли.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setConfirmingBlock(false)}
+                type="button"
+                disabled={togglingBlock}
+              >
+                Скасувати
+              </button>
+              <button
+                className={styles.confirmLogoutButton}
+                onClick={onToggleBlock}
+                type="button"
+                disabled={togglingBlock}
+              >
+                {togglingBlock ? 'Блокуємо…' : 'Так, заблокувати'}
               </button>
             </div>
           </div>

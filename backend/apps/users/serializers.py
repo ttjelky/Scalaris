@@ -1,7 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import Block, Report, User
 
 
 class RelativeImageField(serializers.ImageField):
@@ -32,10 +32,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserPublicSerializer(serializers.ModelSerializer):
     avatar = RelativeImageField(read_only=True)
+    is_blocked = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio']
+        fields = ['id', 'username', 'avatar', 'bio', 'is_blocked']
+
+    def get_is_blocked(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return Block.objects.filter(blocker=request.user, blocked=obj).exists()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -87,3 +94,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError({'password_confirm': "Passwords don't match."})
         return attrs
+
+
+class ReportSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=Report.Reason.choices)
+    details = serializers.CharField(max_length=500, required=False, allow_blank=True)
