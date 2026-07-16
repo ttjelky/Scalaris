@@ -88,7 +88,10 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.greetingBlock}>
-          <span className={styles.eyebrow}>Live map</span>
+          <span className={styles.eyebrow}>
+            <span className={`${styles.pulseDot} ${loading ? styles.pulseDotActive : ''}`} aria-hidden="true" />
+            Наживо
+          </span>
           <div className={styles.greeting}>Привіт, {user?.username}</div>
         </div>
         <button className={styles.logoutButton} onClick={logout} type="button">
@@ -96,22 +99,12 @@ export default function Home() {
         </button>
       </header>
 
-      <div className={styles.heroCard}>
-        <div>
-          <p className={styles.kicker}>Твоя зона активності</p>
-          <h1 className={styles.heroTitle}>Зустрічаєш людей у радіусі 5 км</h1>
-          <p className={styles.heroText}>Бачиш, хто поруч, і зберігаєш момент бігу або прогулянки прямо на карті.</p>
-        </div>
-        <div className={styles.heroStat}>
-          <span className={styles.heroStatValue}>{nearbyCount}</span>
-          <span className={styles.heroStatLabel}>поруч</span>
-        </div>
-      </div>
-
       <div className={styles.mapWrap}>
         {loading && (
           <div className={styles.overlayState}>
-            <span className={styles.spinner} aria-hidden="true" />
+            <div className={styles.lane} aria-hidden="true">
+              <span className={styles.laneDot} />
+            </div>
             <p>Визначаємо твою геопозицію…</p>
           </div>
         )}
@@ -123,50 +116,60 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
-          <>
-            <MapContainer center={position} zoom={14} zoomControl={false} className={styles.map}>
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              />
-              <Marker position={position} />
-              <Circle
-                center={position}
-                radius={4000}
-                pathOptions={{ color: '#7dd3fc', fillColor: '#38bdf8', fillOpacity: 0.12, weight: 1 }}
-              />
-              {nearbyUsers.map((person) => (
-                <Marker key={person.id} position={[person.latitude, person.longitude]} />
-              ))}
-              <RecenterOnMove position={position} />
-            </MapContainer>
-
-            <div className={styles.sidePanel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <p className={styles.panelTitle}>Поруч зараз</p>
-                  <p className={styles.panelSubtitle}>Користувачі в радіусі 5 км</p>
-                </div>
-                <span className={styles.panelBadge}>{nearbyCount}</span>
-              </div>
-              <div className={styles.userList}>
-                {nearbyUsers.length === 0 ? (
-                  <div className={styles.emptyState}>Поки що нікого поруч немає. Розкрий зону активності.</div>
-                ) : (
-                  nearbyUsers.map((person) => (
-                    <div className={styles.userCard} key={person.id}>
-                      <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
-                      <div className={styles.userMeta}>
-                        <div className={styles.userName}>{person.username}</div>
-                        <div className={styles.userStatus}>{person.is_online ? 'online' : 'last seen'}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </>
+          <MapContainer center={position} zoom={14} zoomControl={false} className={styles.map}>
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            />
+            <Marker position={position} />
+            <Circle
+              center={position}
+              radius={4000}
+              pathOptions={{ color: '#c6ff3d', fillColor: '#c6ff3d', fillOpacity: 0.14, weight: 2 }}
+            />
+            {nearbyUsers.map((person) => (
+              <Marker key={person.id} position={[person.latitude, person.longitude]} />
+            ))}
+            <RecenterOnMove position={position} />
+          </MapContainer>
         )}
+      </div>
+
+      <div className={styles.sheet}>
+        <div className={styles.sheetHandle} aria-hidden="true" />
+
+        <div className={styles.heroRow}>
+          <div>
+            <p className={styles.kicker}>Твоя зона активності</p>
+            <h1 className={styles.heroTitle}>Люди поруч</h1>
+          </div>
+          <div className={styles.heroBadge}>
+            <span className={styles.heroBadgeValue}>{nearbyCount}</span>
+            <span className={styles.heroBadgeLabel}>поруч</span>
+          </div>
+        </div>
+
+        <p className={styles.heroText}>
+          Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
+        </p>
+
+        <div className={styles.userList}>
+          {nearbyUsers.length === 0 ? (
+            <div className={styles.emptyState}>
+              Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
+            </div>
+          ) : (
+            nearbyUsers.map((person) => (
+              <div className={styles.userCard} key={person.id}>
+                <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                <div className={styles.userMeta}>
+                  <div className={styles.userName}>{person.username}</div>
+                  <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
