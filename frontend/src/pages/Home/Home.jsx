@@ -1,9 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -11,45 +7,11 @@ import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
 import styles from './Home.module.css';
 
-// Small CSS dot markers instead of the default leaflet pin (which needs
-// bundler-specific asset handling and was rendering broken under Vite).
-const ownIcon = L.divIcon({
-  className: `leaflet-dot-icon ${styles.ownMarker}`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-const personIcon = L.divIcon({
-  className: `leaflet-dot-icon ${styles.personMarker}`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
+const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
 
 // Drag distance (px) needed to trigger a state change when releasing the sheet.
 const COLLAPSE_THRESHOLD = 60;
 const EXPAND_THRESHOLD = 40;
-
-// Nicknames only show once you're this many zoom levels away from max zoom
-// (i.e. reasonably close in) — otherwise crowded areas turn into a wall of text.
-const NICKNAME_ZOOM_OFFSET = 3;
-
-function RecenterOnMove({ position }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
-  }, [position, map]);
-  return null;
-}
-
-function ZoomWatcher({ onZoomChange }) {
-  const map = useMapEvents({
-    zoomend: () => onZoomChange(map.getZoom(), map.getMaxZoom()),
-  });
-  useEffect(() => {
-    onZoomChange(map.getZoom(), map.getMaxZoom());
-  }, [map, onZoomChange]);
-  return null;
-}
 
 // Invitation.Status choices from the backend, mapped to display text and
 // a CSS-module class suffix for the status badge in the ongoing view.
@@ -134,11 +96,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
-  const [showNicknames, setShowNicknames] = useState(false);
-
-  const handleZoomChange = useCallback((zoom, maxZoom) => {
-    setShowNicknames(zoom >= maxZoom - NICKNAME_ZOOM_OFFSET);
-  }, []);
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -420,6 +377,7 @@ export default function Home() {
       setTogglingVisibility(false);
     }
   };
+
   const sheetClassName = [
     styles.sheet,
     sheetState === 'collapsed' && styles.sheetCollapsed,
@@ -453,6 +411,8 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
+          <Navbar />
+
           <Link to="/profile" className={styles.greetingBlock}>
             {user?.avatar ? (
               <img src={user.avatar} alt="" className={styles.greetingAvatar} />
@@ -513,36 +473,6 @@ export default function Home() {
             />
           </svg>
         </button>
-          <Navbar />
-          <div className={styles.topbarActions}>
-            <button
-              className={styles.recenterButton}
-              onClick={recenterToMe}
-              type="button"
-              disabled={!position}
-              aria-label="Показати мою геопозицію"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-                <path
-                  d="M12 2V5M12 19V22M2 12H5M19 12H22"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-
-            <Link to="/profile" className={styles.greetingBlock}>
-              {user?.avatar ? (
-                <img src={user.avatar} alt="" className={styles.greetingAvatar} />
-              ) : (
-                <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
-              )}
-              <span className={styles.greeting}>{user?.username}</span>
-            </Link>
-          </div>
-        </div>
 
         <div className={styles.activityPills}>
           {ACTIVITIES.map((activity) => (
@@ -578,39 +508,23 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
-          <MapContainer ref={mapRef} center={position} zoom={14} zoomControl={false} className={styles.map}>
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              maxZoom={19}
-            />
-            <Marker position={position} icon={ownIcon} />
-            {nearbyUsers.map((person) => (
-              <Marker
-                key={person.id}
-                position={[person.latitude, person.longitude]}
-                icon={personIcon}
-              >
-                {showNicknames && (
-                  <Tooltip
-                    className={styles.markerLabel}
-                    direction="top"
-                    offset={[0, -10]}
-                    permanent
-                    interactive={false}
-                  >
-                    {person.username}
-                  </Tooltip>
-                )}
-              </Marker>
-            ))}
-            <RecenterOnMove position={position} />
-            <ZoomWatcher onZoomChange={handleZoomChange} />
-          </MapContainer>
+          <MapView
+            ref={mapRef}
+            position={position}
+            nearbyUsers={nearbyUsers}
+            activities={nearbyActivities}
+            gathering={gatheringMapData}
+          />
         )}
       </div>
 
-      <div className={sheetClassName} ref={sheetRef}>
+      <div
+        className={`${styles.scrim} ${sheetState === 'expanded' ? styles.scrimVisible : ''}`}
+        onClick={() => !activeActivity && setSheetState('collapsed')}
+        aria-hidden="true"
+      />
+
+      <div ref={sheetRef} className={sheetClassName}>
         <div
           className={styles.sheetHeader}
           role="button"
@@ -629,42 +543,6 @@ export default function Home() {
           }}
         >
           <div className={styles.sheetHandle} aria-hidden="true" />
-
-          <div className={styles.heroRow}>
-            <div>
-              <p className={styles.kicker}>Твоя зона активності</p>
-              <h1 className={styles.heroTitle}>Люди поруч</h1>
-            </div>
-            <div className={styles.heroBadge}>
-              <span className={styles.heroBadgeValue}>{nearbyCount}</span>
-              <span className={styles.heroBadgeLabel}>поруч</span>
-            </div>
-          <MapView
-            ref={mapRef}
-            position={position}
-            nearbyUsers={nearbyUsers}
-            activities={nearbyActivities}
-            gathering={gatheringMapData}
-          />
-        )}
-      </div>
-
-      <div
-        className={`${styles.scrim} ${sheetState === 'expanded' ? styles.scrimVisible : ''}`}
-        onClick={() => !activeActivity && setSheetState('collapsed')}
-        aria-hidden="true"
-      />
-
-      <div ref={sheetRef} className={sheetClassName}>
-        <div className={styles.sheetHeader} onClick={handleHeaderClick}>
-          <div
-            className={styles.sheetHandle}
-            aria-hidden="true"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={finishDrag}
-            onPointerCancel={finishDrag}
-          />
 
           <div className={styles.heroRow}>
             {activeActivity ? (
@@ -721,87 +599,79 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className={`${styles.collapsibleContent} ${
-            sheetState === 'collapsed' ? styles.collapsibleContentHidden : ''
-          }`}
-        >
-          <div className={styles.collapsibleInner}>
-            {activeActivity ? (
-              <Suspense fallback={<div className={styles.formLoading}>Завантаження форми…</div>}>
-                <ActivityForm
-                  initialPosition={position}
-                  nearbyUsers={nearbyUsers}
-                  onCancel={handleCancelCreate}
-                  onCreated={handleActivityCreated}
-                />
-              </Suspense>
-            ) : ongoingActivity ? (
-              <div className={styles.ongoingWrap}>
-                <p className={styles.heroText}>
-                  {ongoingActivity.title || 'Збір'} триває вже {formatDurationLong(ongoingElapsed)}.
-                </p>
+        {activeActivity ? (
+          <Suspense fallback={<div className={styles.formLoading}>Завантаження форми…</div>}>
+            <ActivityForm
+              initialPosition={position}
+              nearbyUsers={nearbyUsers}
+              onCancel={handleCancelCreate}
+              onCreated={handleActivityCreated}
+            />
+          </Suspense>
+        ) : ongoingActivity ? (
+          <div className={styles.ongoingWrap}>
+            <p className={styles.heroText}>
+              {ongoingActivity.title || 'Збір'} триває вже {formatDurationLong(ongoingElapsed)}.
+            </p>
 
-                <p className={styles.ongoingParticipantsTitle}>Учасники</p>
-                <div className={styles.ongoingParticipantsList}>
-                  {(ongoingActivity.participants || []).length === 0 ? (
-                    <div className={styles.emptyState}>Немає учасників</div>
-                  ) : (
-                    ongoingActivity.participants.map((p) => {
-                      const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
-                      return (
-                        <div key={p.id} className={styles.ongoingParticipant}>
-                          <span className={styles.ongoingParticipantAvatar}>
-                            {p.username?.slice(0, 1).toUpperCase()}
-                          </span>
-                          <span className={styles.ongoingParticipantName}>{p.username}</span>
-                          <span
-                            className={`${styles.ongoingParticipantStatus} ${styles[statusInfo.className] || ''}`}
-                          >
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  className={styles.leaveBtn}
-                  onClick={handleLeaveActivity}
-                  disabled={leaving}
-                >
-                  {leaving ? 'Виходимо…' : 'Вийти'}
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className={styles.heroText}>
-                  Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
-                </p>
-
-                <div className={styles.userList} key={sheetState}>
-                  {nearbyUsers.length === 0 ? (
-                    <div className={styles.emptyState}>
-                      Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
+            <p className={styles.ongoingParticipantsTitle}>Учасники</p>
+            <div className={styles.ongoingParticipantsList}>
+              {(ongoingActivity.participants || []).length === 0 ? (
+                <div className={styles.emptyState}>Немає учасників</div>
+              ) : (
+                ongoingActivity.participants.map((p) => {
+                  const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
+                  return (
+                    <div key={p.id} className={styles.ongoingParticipant}>
+                      <span className={styles.ongoingParticipantAvatar}>
+                        {p.username?.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className={styles.ongoingParticipantName}>{p.username}</span>
+                      <span
+                        className={`${styles.ongoingParticipantStatus} ${styles[statusInfo.className] || ''}`}
+                      >
+                        {statusInfo.label}
+                      </span>
                     </div>
-                  ) : (
-                    nearbyUsers.map((person) => (
-                      <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
-                        <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
-                        <div className={styles.userMeta}>
-                          <div className={styles.userName}>{person.username}</div>
-                          <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
-                        </div>
-                      </Link>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
+                  );
+                })
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={styles.leaveBtn}
+              onClick={handleLeaveActivity}
+              disabled={leaving}
+            >
+              {leaving ? 'Виходимо…' : 'Вийти'}
+            </button>
           </div>
-        </div>
+        ) : (
+          <>
+            <p className={styles.heroText}>
+              Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
+            </p>
+
+            <div className={styles.userList} key={sheetState}>
+              {nearbyUsers.length === 0 ? (
+                <div className={styles.emptyState}>
+                  Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
+                </div>
+              ) : (
+                nearbyUsers.map((person) => (
+                  <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
+                    <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                    <div className={styles.userMeta}>
+                      <div className={styles.userName}>{person.username}</div>
+                      <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {toast && <div className={styles.toast}>{toast}</div>}
