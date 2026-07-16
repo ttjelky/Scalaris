@@ -4,12 +4,16 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     BlockedUsersListView,
     BlockUserView,
+    DiscordCallbackView,
+    DiscordUnlinkView,
     LogoutView,
     MeView,
     PasswordResetConfirmView,
     PasswordResetView,
     RegisterView,
     ReportUserView,
+    TelegramLinkStartView,
+    TelegramUnlinkView,
     UserDetailView,
 )
 from .token_views import EmailTokenObtainPairView, CookieTokenRefreshView
@@ -23,6 +27,10 @@ urlpatterns = [
     path('password-reset/', PasswordResetView.as_view(), name='password-reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     path('blocked/', BlockedUsersListView.as_view(), name='user-blocked-list'),
+    path('oauth/discord/callback/', DiscordCallbackView.as_view(), name='oauth-discord-callback'),
+    path('oauth/discord/unlink/', DiscordUnlinkView.as_view(), name='oauth-discord-unlink'),
+    path('oauth/telegram/start/', TelegramLinkStartView.as_view(), name='oauth-telegram-start'),
+    path('oauth/telegram/unlink/', TelegramUnlinkView.as_view(), name='oauth-telegram-unlink'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('<int:pk>/block/', BlockUserView.as_view(), name='user-block'),
     path('<int:pk>/report/', ReportUserView.as_view(), name='user-report'),

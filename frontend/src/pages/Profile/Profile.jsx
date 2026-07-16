@@ -31,6 +31,12 @@ export default function Profile() {
   const [togglingBlock, setTogglingBlock] = useState(false);
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
+  const [discordUnlinking, setDiscordUnlinking] = useState(false);
+  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const [telegramDeepLink, setTelegramDeepLink] = useState(null);
+  const [socialError, setSocialError] = useState('');
+
   const onConfirmLogout = async () => {
     setLoggingOut(true);
     try {
@@ -105,6 +111,94 @@ export default function Profile() {
     setAvatarPreview(null);
     setSaveError('');
   };
+
+  const connectDiscord = () => {
+    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+    if (!clientId) {
+      setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
+      return;
+    }
+    const redirectUri = `${window.location.origin}/oauth/discord/callback`;
+    const url = new URL('https://discord.com/api/oauth2/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', 'identify');
+    window.location.href = url.toString();
+  };
+
+  const disconnectDiscord = async () => {
+    setDiscordUnlinking(true);
+    setSocialError('');
+    try {
+      await api.delete('/users/oauth/discord/unlink/');
+      updateUser({ discord_username: '' });
+    } catch {
+      setSocialError('Не вдалося відʼєднати Discord. Спробуй ще раз.');
+    } finally {
+      setDiscordUnlinking(false);
+    }
+  };
+
+  const disconnectTelegram = async () => {
+    setTelegramUnlinking(true);
+    setSocialError('');
+    try {
+      await api.delete('/users/oauth/telegram/unlink/');
+      updateUser({ telegram_username: '' });
+    } catch {
+      setSocialError('Не вдалося відʼєднати Telegram. Спробуй ще раз.');
+    } finally {
+      setTelegramUnlinking(false);
+    }
+  };
+
+  // Telegram: без Login Widget (той вимагає прив'язаний домен через
+  // BotFather /setdomain, що не працює на localhost). Замість цього —
+  // одноразовий код: бекенд його генерує, ми відкриваємо посилання на
+  // бота, юзер тисне /start у Telegram, окремий процес (management command
+  // telegram_bot) підхоплює це і привʼязує акаунт. Поки чекаємо — просто
+  // періодично перепитуємо /users/me/, чи вже зʼявився telegram_username.
+  const connectTelegram = async () => {
+    setTelegramConnecting(true);
+    setSocialError('');
+    try {
+      const { data } = await api.post('/users/oauth/telegram/start/');
+      setTelegramDeepLink(data.deep_link);
+      window.open(data.deep_link, '_blank', 'noopener,noreferrer');
+    } catch {
+      setSocialError('Не вдалося розпочати підключення Telegram. Спробуй ще раз.');
+      setTelegramConnecting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!telegramConnecting) return undefined;
+
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await api.get('/users/me/');
+        if (data.telegram_username) {
+          updateUser(data);
+          setTelegramConnecting(false);
+          setTelegramDeepLink(null);
+        }
+      } catch {
+        // тимчасовий збій мережі — просто спробуємо ще раз на наступному тіку
+      }
+    }, 2500);
+
+    // Не чекаємо вічно — код все одно згорає за 10 хв на бекенді.
+    const timeout = setTimeout(() => {
+      setTelegramConnecting(false);
+      setTelegramDeepLink(null);
+    }, 10 * 60 * 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [telegramConnecting, updateUser]);
 
   const onToggleBlock = async () => {
     setTogglingBlock(true);
@@ -217,6 +311,78 @@ export default function Profile() {
           <p className={styles.bio}>
             {profile.bio || (isOwnProfile ? 'Додай опис про себе.' : 'Користувач ще не додав опис.')}
           </p>
+        )}
+
+        {isOwnProfile && !editing && (
+          <div className={styles.socialSection}>
+            <span className={styles.label}>Соцмережі</span>
+
+            {socialError && (
+              <p className={styles.formError} role="alert">
+                {socialError}
+              </p>
+            )}
+
+            <div className={styles.socialRow}>
+              <span className={styles.socialName}>Discord</span>
+              {profile.discord_username ? (
+                <div className={styles.socialConnected}>
+                  <span className={styles.socialHandle}>{profile.discord_username}</span>
+                  <button
+                    className={styles.socialUnlink}
+                    onClick={disconnectDiscord}
+                    type="button"
+                    disabled={discordUnlinking}
+                  >
+                    {discordUnlinking ? '…' : 'Відʼєднати'}
+                  </button>
+                </div>
+              ) : (
+                <button className={styles.socialConnect} onClick={connectDiscord} type="button">
+                  Підключити
+                </button>
+              )}
+            </div>
+
+            <div className={styles.socialRow}>
+              <span className={styles.socialName}>Telegram</span>
+              {profile.telegram_username ? (
+                <div className={styles.socialConnected}>
+                  <span className={styles.socialHandle}>@{profile.telegram_username}</span>
+                  <button
+                    className={styles.socialUnlink}
+                    onClick={disconnectTelegram}
+                    type="button"
+                    disabled={telegramUnlinking}
+                  >
+                    {telegramUnlinking ? '…' : 'Відʼєднати'}
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.socialConnected}>
+                  {telegramConnecting ? (
+                    <>
+                      <span className={styles.socialHint}>Очікуємо підтвердження в Telegram…</span>
+                      {telegramDeepLink && (
+                        <a
+                          className={styles.socialConnect}
+                          href={telegramDeepLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Відкрити бота ще раз
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <button className={styles.socialConnect} onClick={connectTelegram} type="button">
+                      Підключити
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {isOwnProfile && !editing && (

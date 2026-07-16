@@ -292,6 +292,89 @@
   cursor: pointer;
 }
 
+.socialSection {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line, #e5e5e5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.socialRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.socialName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+}
+
+.socialConnect {
+  border: 1px solid var(--color-line, #e5e5e5);
+  border-radius: var(--radius-pill, 999px);
+  padding: 8px 16px;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-ink, #0b0b0c);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-track, ease);
+}
+
+.socialConnect:hover {
+  background: var(--color-line, #f0f0f0);
+}
+
+.socialConnected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.socialHandle {
+  font-size: 13px;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.socialUnlink {
+  border: none;
+  background: none;
+  padding: 4px;
+  color: var(--color-danger, #d9463f);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.socialUnlink:hover:not(:disabled) {
+  opacity: 0.75;
+}
+
+.socialUnlink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.telegramWidgetSlot {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+.socialHint {
+  font-size: 12px;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
 .logoutButton {
   margin: 32px auto 0;
   display: block;
