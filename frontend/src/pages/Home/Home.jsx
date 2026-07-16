@@ -424,33 +424,6 @@ export default function Home() {
               <span className={styles.greeting}>{user?.username}</span>
             </Link>
           </div>
-        <div className={styles.topbarRow}>
-          <Link to="/profile" className={styles.greetingBlock}>
-            {user?.avatar ? (
-              <img src={user.avatar} alt="" className={styles.greetingAvatar} />
-            ) : (
-              <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
-            )}
-            <span className={styles.greeting}>{user?.username}</span>
-          </Link>
-
-          <button
-            className={styles.recenterButton}
-            onClick={recenterToMe}
-            type="button"
-            disabled={!position}
-            aria-label="Показати мою геопозицію"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M12 2V5M12 19V22M2 12H5M19 12H22"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
         </div>
 
         <div className={styles.activityPills}>
@@ -593,7 +566,7 @@ export default function Home() {
                 <p className={styles.ongoingParticipantsTitle}>Учасники</p>
                 <div className={styles.ongoingParticipantsList}>
                   {(ongoingActivity.participants || []).length === 0 ? (
-                    <div className={styles.empty}>Немає учасників</div>
+                    <div className={styles.emptyState}>Немає учасників</div>
                   ) : (
                     ongoingActivity.participants.map((p) => {
                       const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
