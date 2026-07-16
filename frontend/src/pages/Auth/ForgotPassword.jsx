@@ -1,21 +1,28 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
+import { parseApiError } from '../../utils/apiErrors';
 import AuthLayout from './AuthLayout';
 import form from './Form.module.css';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
   const [resetToken, setResetToken] = useState('');
 
-  const onChange = (e) => setEmail(e.target.value);
+  const onChange = (e) => {
+    setEmail(e.target.value);
+    if (fieldErrors.email) setFieldErrors({});
+    if (error) setError('');
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
     setPending(true);
     try {
       const { data } = await api.post('/users/password-reset/', { email });
@@ -25,8 +32,13 @@ export default function ForgotPassword() {
       }
       setSent(true);
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      setError(detail || 'Щось пішло не так. Спробуй ще раз трохи пізніше.');
+      const { fieldErrors: apiFieldErrors, generalError } = parseApiError(err, {
+        fallback: 'Щось пішло не так. Спробуй ще раз трохи пізніше.',
+      });
+      setFieldErrors(apiFieldErrors);
+      if (generalError && Object.keys(apiFieldErrors).length === 0) {
+        setError(generalError);
+      }
     } finally {
       setPending(false);
     }
@@ -37,7 +49,7 @@ export default function ForgotPassword() {
       <AuthLayout
         eyebrow="Перевір пошту"
         title="Лист вже в дорозі"
-        subtitle={`Ми надіслали посилання для відновлення паролю на ${email}. Перевір папку "Спам", якщо не бачиш листа.`}
+        subtitle={`Якщо акаунт з поштою ${email} існує, ми надіслали на неї посилання для відновлення паролю. Перевір папку "Спам", якщо не бачиш листа.`}
         footer={
           <span>
             Згадав пароль?{' '}
@@ -90,7 +102,7 @@ export default function ForgotPassword() {
         <label className={form.field}>
           <span className={form.label}>Email</span>
           <input
-            className={form.input}
+            className={`${form.input} ${fieldErrors.email ? form.inputError : ''}`}
             type="email"
             name="email"
             autoComplete="email"
@@ -100,6 +112,7 @@ export default function ForgotPassword() {
             onChange={onChange}
             required
           />
+          {fieldErrors.email && <span className={form.fieldError}>{fieldErrors.email}</span>}
         </label>
 
         <button className={form.submit} type="submit" disabled={pending}>

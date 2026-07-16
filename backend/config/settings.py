@@ -101,6 +101,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '10/min',           # захист від brute-force підбору пароля
+        'register': '5/hour',        # захист від масової реєстрації ботами
+        'password_reset': '5/hour',  # захист від спаму reset-листами на чужу пошту
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }

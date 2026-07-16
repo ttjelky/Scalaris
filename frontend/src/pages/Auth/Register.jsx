@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { parseApiError } from '../../utils/apiErrors';
 import AuthLayout from './AuthLayout';
 import form from './Form.module.css';
 
@@ -15,7 +16,18 @@ export default function Register() {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
-  const onChange = (e) => setValues((v) => ({ ...v, [e.target.name]: e.target.value }));
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    setValues((v) => ({ ...v, [name]: value }));
+    // Прибираємо помилку саме цього поля — інакше вона висітиме
+    // під інпутом, навіть коли юзер уже все виправив.
+    setFieldErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
 
   const validate = () => {
     const errors = {};
@@ -37,14 +49,18 @@ export default function Register() {
       await register(values);
       navigate('/home', { replace: true });
     } catch (err) {
-      const data = err.response?.data;
-      if (data && typeof data === 'object') {
-        setFieldErrors((prev) => ({
-          ...prev,
-          ...Object.fromEntries(Object.entries(data).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])),
-        }));
-      } else {
-        setError('Щось пішло не так під час створення акаунта. Спробуй ще раз.');
+      const { fieldErrors: apiFieldErrors, generalError } = parseApiError(err, {
+        fallback: 'Щось пішло не так під час створення акаунта. Спробуй ще раз.',
+      });
+
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors((prev) => ({ ...prev, ...apiFieldErrors }));
+      }
+      // Якщо є конкретні помилки по полях — не дублюємо їх ще й загальним
+      // банером зверху, показуємо загальну помилку лише коли по полях
+      // сказати нічого (мережа, 429, 5xx).
+      if (generalError && Object.keys(apiFieldErrors).length === 0) {
+        setError(generalError);
       }
     } finally {
       setPending(false);

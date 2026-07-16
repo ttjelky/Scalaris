@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -8,6 +9,13 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
 
 User = get_user_model()
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    """Separate scope so login attempts are throttled independently of
+    general anonymous API traffic. Rate is configured via
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['login'] — see settings_snippet.py."""
+    scope = 'login'
 
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -29,6 +37,7 @@ class EmailTokenObtainPairView(TokenObtainPairView):
     short-lived access token is returned to JS."""
 
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
 
     def finalize_response(self, request, response, *args, **kwargs):
         if response.status_code == 200 and 'refresh' in response.data:
