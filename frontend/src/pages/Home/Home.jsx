@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Circle, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import styles from './Home.module.css';
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
+// Small CSS dot markers instead of the default leaflet pin (which needs
+// bundler-specific asset handling and was rendering broken under Vite).
+const ownIcon = L.divIcon({
+  className: `leaflet-dot-icon ${styles.ownMarker}`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+const personIcon = L.divIcon({
+  className: `leaflet-dot-icon ${styles.personMarker}`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
 });
 
 function RecenterOnMove({ position }) {
@@ -121,14 +125,13 @@ export default function Home() {
               url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             />
-            <Marker position={position} />
-            <Circle
-              center={position}
-              radius={4000}
-              pathOptions={{ color: '#c6ff3d', fillColor: '#c6ff3d', fillOpacity: 0.14, weight: 2 }}
-            />
+            <Marker position={position} icon={ownIcon} />
             {nearbyUsers.map((person) => (
-              <Marker key={person.id} position={[person.latitude, person.longitude]} />
+              <Marker
+                key={person.id}
+                position={[person.latitude, person.longitude]}
+                icon={personIcon}
+              />
             ))}
             <RecenterOnMove position={position} />
           </MapContainer>
