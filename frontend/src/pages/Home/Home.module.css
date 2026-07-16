@@ -66,6 +66,15 @@
   transform: scale(0.95);
 }
 
+.activityPill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.activityPill:disabled:active {
+  transform: none;
+}
+
 .activityPillActive {
   background: var(--color-accent, #c6ff3d);
   border-color: var(--color-accent, #c6ff3d);
@@ -271,6 +280,10 @@
 
 .sheetCollapsed .heroBadgeValue {
   font-size: 1.05rem;
+}
+
+.sheetCollapsed .heroBadgeValueClock {
+  font-size: 0.68rem;
 }
 
 .sheetCollapsed .heroBadgeLabel {
@@ -567,6 +580,127 @@
   color: var(--color-ink-soft, #6b6b70);
   font-size: 0.85rem;
   text-align: center;
+}
+
+/* Smaller, tabular variant of .heroBadgeValue used for the live "mm:ss"
+   clock so longer durations (e.g. "1:02:07") still fit inside the circle. */
+.heroBadgeValueClock {
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  animation: none;
+}
+
+.ongoingWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.ongoingParticipantsTitle {
+  margin: 4px 0 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.ongoingParticipantsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ongoingParticipant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm, 16px);
+  background: var(--color-surface, #f7f7f5);
+}
+
+.ongoingParticipantAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.ongoingParticipantName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ongoingParticipantStatus {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.statusAccepted,
+.statusArrived {
+  background: rgba(198, 255, 61, 0.4);
+  color: var(--color-ink, #0b0b0c);
+}
+
+.statusPending {
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.statusDeclined,
+.statusLeft {
+  background: rgba(192, 35, 57, 0.12);
+  color: #c02339;
+}
+
+.leaveBtn {
+  margin-top: 18px;
+  width: 100%;
+  background: transparent;
+  border: 1.5px solid rgba(192, 35, 57, 0.35);
+  color: #c02339;
+  padding: 13px 18px;
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.leaveBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.leaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .leaveBtn:hover:not(:disabled) {
+    background: rgba(192, 35, 57, 0.08);
+  }
 }
 .toast {
   position: absolute;

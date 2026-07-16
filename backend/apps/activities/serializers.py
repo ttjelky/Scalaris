@@ -53,6 +53,22 @@ class LocationSerializer(serializers.ModelSerializer):
         return location
 
 
+class ActivityParticipantSerializer(serializers.ModelSerializer):
+    """
+    Один запрошений на активність, сплющено в {..user fields.., status} —
+    зручно рендерити як список чіпів "ім'я + бейдж статусу" на фронті.
+    """
+
+    class Meta:
+        model = Invitation
+        fields = ['status']
+
+    def to_representation(self, instance):
+        data = UserPublicSerializer(instance.to_user).data
+        data['status'] = instance.status
+        return data
+
+
 class ActivitySerializer(serializers.ModelSerializer):
     """
     Створення/редагування/детальний перегляд однієї активності.
@@ -70,6 +86,14 @@ class ActivitySerializer(serializers.ModelSerializer):
         allow_empty=False,
         help_text='Список id користувачів, яких запрошуємо. Мінімум 1, максимум 8.'
     )
+    # Всі запрошені (не лише ті, хто прийняв), кожен зі своїм статусом
+    # інвайту — фронт показує це як бейджі "прийнято"/"очікування" тощо
+    # і сам відфільтровує accepted/arrived для виділення на карті.
+    participants = serializers.SerializerMethodField()
+
+    def get_participants(self, obj):
+        invitations = obj.invitations.select_related('to_user').order_by('created_at')
+        return ActivityParticipantSerializer(invitations, many=True).data
 
     class Meta:
         model = Activity
@@ -77,10 +101,10 @@ class ActivitySerializer(serializers.ModelSerializer):
             'id', 'creator', 'title', 'description',
             'latitude', 'longitude', 'started_at', 'category', 'created_at',
             'live_status', 'geofence_radius_m', 'activated_at', 'completed_at',
-            'participant_ids',
+            'participant_ids', 'participants',
         ]
         read_only_fields = [
-            'id', 'creator', 'created_at',
+            'id', 'creator', 'created_at', 'started_at',
             'live_status', 'activated_at', 'completed_at',
         ]
 
@@ -92,11 +116,6 @@ class ActivitySerializer(serializers.ModelSerializer):
     def validate_longitude(self, value):
         if not -180.0 <= value <= 180.0:
             raise serializers.ValidationError("Довгота повинна бути в діапазоні від -180 до 180.")
-        return value
-
-    def validate_started_at(self, value):
-        if value < timezone.now():
-            raise serializers.ValidationError("Час початку не може бути в минулому.")
         return value
 
     def validate_participant_ids(self, value):
@@ -141,8 +160,14 @@ class ActivitySerializer(serializers.ModelSerializer):
         lng = validated_data.pop('longitude')
         participants = validated_data.pop('participant_ids')
 
+        now = timezone.now()
         validated_data['point'] = Point(lng, lat, srid=4326)
         validated_data['creator'] = self.context['request'].user
+        # Активність стартує одразу в момент створення — не чекаємо,
+        # поки хтось із запрошених прийме інвайт.
+        validated_data['started_at'] = now
+        validated_data['live_status'] = Activity.LiveStatus.ACTIVE
+        validated_data['activated_at'] = now
 
         activity = Activity.objects.create(**validated_data)
 

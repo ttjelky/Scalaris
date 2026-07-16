@@ -13,6 +13,60 @@ const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityFo
 const COLLAPSE_THRESHOLD = 56;
 const EXPAND_THRESHOLD = 32;
 
+// Invitation.Status choices from the backend, mapped to display text and
+// a CSS-module class suffix for the status badge in the ongoing view.
+const PARTICIPANT_STATUS = {
+  pending: { label: 'очікування', className: 'statusPending' },
+  accepted: { label: 'прийнято', className: 'statusAccepted' },
+  arrived: { label: 'на місці', className: 'statusArrived' },
+  declined: { label: 'відхилено', className: 'statusDeclined' },
+  left: { label: 'вийшов(ла)', className: 'statusLeft' },
+};
+
+// Formats elapsed ms as a compact clock string for the small hero badge,
+// e.g. "05:23" or "1:02:07" once it runs past an hour.
+function formatClock(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+// Same duration, but as a friendly phrase for the expanded body text,
+// e.g. "5 хв 23 с" or "1 год 4 хв".
+function formatDurationLong(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h} год ${m} хв`;
+  if (m > 0) return `${m} хв ${s} с`;
+  return `${s} с`;
+}
+
+// Ticks once a second while an activity is ongoing, giving back the
+// elapsed time in ms since its started_at.
+function useElapsedTime(startedAt) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) {
+      setElapsed(0);
+      return undefined;
+    }
+    const startMs = new Date(startedAt).getTime();
+    const update = () => setElapsed(Math.max(0, Date.now() - startMs));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  return elapsed;
+}
+
 // Only one activity type exists for now. Kept as a list so more can be
 // added later without reshaping the pill row or the sheet-switching logic.
 const ACTIVITIES = [
@@ -46,6 +100,13 @@ export default function Home() {
   // switches its content based on this instead of opening a separate modal.
   const [activeActivityId, setActiveActivityId] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // The gathering that was just created, still running. While this is set
+  // (and no form is being filled out), the bottom sheet shows its title,
+  // live duration, and participants instead of the nearby-people list.
+  const [ongoingActivity, setOngoingActivity] = useState(null);
+  const ongoingElapsed = useElapsedTime(ongoingActivity?.started_at);
+  const [leaving, setLeaving] = useState(false);
 
   // --- Draggable bottom sheet state -------------------------------------
   const [sheetState, setSheetState] = useState('collapsed');
@@ -132,7 +193,12 @@ export default function Home() {
     setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
   };
 
+  // Один "Збір" за раз: поки щось триває, кнопки створення нової активності
+  // вимкнені — спершу треба вийти з поточної.
+  const canCreateActivity = !ongoingActivity;
+
   const handlePillClick = (activity) => {
+    if (!canCreateActivity) return;
     setActiveActivityId(activity.id);
     setSheetState('expanded');
   };
@@ -141,6 +207,26 @@ export default function Home() {
     setActiveActivityId(null);
   };
   // ------------------------------------------------------------------------
+
+  // Переживає перезавантаження сторінки: React-стейт сам по собі зникає
+  // при reload, тож на кожен маунт питаємо бекенд, чи є в мене зараз
+  // live-збір, і якщо є — одразу показуємо ongoing-вʼю замість людей поруч.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/activities/my-active/');
+        if (!cancelled && data) {
+          setOngoingActivity(data);
+        }
+      } catch {
+        // немає активного збору (або запит не вдався) — лишаємось на дефолтному екрані
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -214,6 +300,58 @@ export default function Home() {
 
   const nearbyCount = useMemo(() => nearbyUsers.length, [nearbyUsers]);
 
+  // While a gathering is ongoing, periodically re-fetch it so newly accepted
+  // participants (participants[].status, from the backend) show up on the
+  // map highlight without the person having to do anything.
+  useEffect(() => {
+    if (!ongoingActivity?.id) return undefined;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const { data } = await api.get(`/activities/${ongoingActivity.id}/`);
+        if (!cancelled) {
+          setOngoingActivity((prev) => (prev && prev.id === data.id ? { ...prev, ...data } : prev));
+        }
+      } catch {
+        // best-effort — keep showing whatever we already have
+      }
+    };
+
+    const intervalId = setInterval(poll, 6000);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [ongoingActivity?.id]);
+
+  // Point + accepted-participant ids for the map, derived from the ongoing
+  // activity. null when there's nothing to show.
+  const gatheringMapData = useMemo(() => {
+    if (!ongoingActivity) return null;
+    return {
+      point: [ongoingActivity.latitude, ongoingActivity.longitude],
+      title: ongoingActivity.title,
+      acceptedIds: (ongoingActivity.participants || [])
+        .filter((p) => p.status === 'accepted' || p.status === 'arrived')
+        .map((p) => p.id),
+    };
+  }, [ongoingActivity]);
+
+  const handleLeaveActivity = async () => {
+    if (!ongoingActivity?.id || leaving) return;
+    setLeaving(true);
+    try {
+      await api.post(`/activities/${ongoingActivity.id}/leave/`);
+    } catch {
+      // best-effort — ховаємо локально в будь-якому разі, щоб не залипало в UI
+    } finally {
+      setLeaving(false);
+      setOngoingActivity(null);
+      setSheetState('collapsed');
+    }
+  };
+
   const recenterToMe = () => {
     if (position && mapRef.current) {
       try {
@@ -231,9 +369,11 @@ export default function Home() {
     .filter(Boolean)
     .join(' ');
 
-  // Activity created: show toast, refresh nearby activities, go back to the people view.
+  // Activity created: show toast, refresh nearby activities, and switch the
+  // sheet over to the "ongoing activity" view instead of the people list.
   const handleActivityCreated = async (activity) => {
     setActiveActivityId(null);
+    setOngoingActivity(activity);
     setSheetState('collapsed');
     setToast('Збір створено успішно');
     setTimeout(() => setToast(null), 3500);
@@ -289,6 +429,8 @@ export default function Home() {
               type="button"
               className={`${styles.activityPill} ${activeActivityId === activity.id ? styles.activityPillActive : ''}`}
               onClick={() => handlePillClick(activity)}
+              disabled={!canCreateActivity}
+              title={canCreateActivity ? undefined : 'Спочатку заверши поточний збір'}
             >
               {activity.icon}
               <span>{activity.label}</span>
@@ -319,6 +461,7 @@ export default function Home() {
             position={position}
             nearbyUsers={nearbyUsers}
             activities={nearbyActivities}
+            gathering={gatheringMapData}
           />
         )}
       </div>
@@ -357,6 +500,27 @@ export default function Home() {
                 <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
                 <span className={styles.sheetBackSpacer} aria-hidden="true" />
               </>
+            ) : ongoingActivity ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.sheetBackBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOngoingActivity(null);
+                  }}
+                  aria-label="До людей поруч"
+                >
+                  ←
+                </button>
+                <h1 className={styles.heroTitle}>{ongoingActivity.title || 'Збір'}</h1>
+                <div className={styles.heroBadge}>
+                  <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
+                    {formatClock(ongoingElapsed)}
+                  </span>
+                  <span className={styles.heroBadgeLabel}>триває</span>
+                </div>
+              </>
             ) : (
               <>
                 <div>
@@ -389,6 +553,45 @@ export default function Home() {
                   onCreated={handleActivityCreated}
                 />
               </Suspense>
+            ) : ongoingActivity ? (
+              <div className={styles.ongoingWrap}>
+                <p className={styles.heroText}>
+                  {ongoingActivity.title || 'Збір'} триває вже {formatDurationLong(ongoingElapsed)}.
+                </p>
+
+                <p className={styles.ongoingParticipantsTitle}>Учасники</p>
+                <div className={styles.ongoingParticipantsList}>
+                  {(ongoingActivity.participants || []).length === 0 ? (
+                    <div className={styles.empty}>Немає учасників</div>
+                  ) : (
+                    ongoingActivity.participants.map((p) => {
+                      const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
+                      return (
+                        <div key={p.id} className={styles.ongoingParticipant}>
+                          <span className={styles.ongoingParticipantAvatar}>
+                            {p.username?.slice(0, 1).toUpperCase()}
+                          </span>
+                          <span className={styles.ongoingParticipantName}>{p.username}</span>
+                          <span
+                            className={`${styles.ongoingParticipantStatus} ${styles[statusInfo.className] || ''}`}
+                          >
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className={styles.leaveBtn}
+                  onClick={handleLeaveActivity}
+                  disabled={leaving}
+                >
+                  {leaving ? 'Виходимо…' : 'Вийти'}
+                </button>
+              </div>
             ) : (
               <>
                 <p className={styles.heroText}>

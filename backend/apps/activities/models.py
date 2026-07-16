@@ -83,6 +83,17 @@ class Activity(models.Model):
             self.activated_at = timezone.now()
             self.save(update_fields=['live_status', 'activated_at'])
 
+    def cancel(self):
+        """
+        Творець виходить/завершує свій live-збір достроково (кнопка «Вийти»
+        на фронті). completed_at тут використовується як загальний
+        "коли перестав бути live", незалежно від причини завершення.
+        """
+        if self.live_status == self.LiveStatus.ACTIVE:
+            self.live_status = self.LiveStatus.CANCELLED
+            self.completed_at = timezone.now()
+            self.save(update_fields=['live_status', 'completed_at'])
+
     def maybe_complete(self):
         """
         Завершити, коли всі 'accepted'-запрошені прийшли ('arrived').

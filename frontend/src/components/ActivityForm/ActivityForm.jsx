@@ -5,13 +5,14 @@ import styles from './ActivityForm.module.css';
 
 /**
  * Inline "Збір" form, rendered inside Home's bottom sheet (not a modal).
- * Deliberately minimal: pick a spot on the map, pick participants, pick a time.
+ * Deliberately minimal: pick a spot on the map, pick participants. The
+ * gathering starts immediately at submit time — there's no scheduling.
  *
  * Props:
  * - initialPosition: [lat, lng] | null
  * - nearbyUsers: array of users { id, username }
  * - onCancel: () => void
- * - onCreated: (activity) => void
+ * - onCreated: (activity) => void  // activity is enriched with participantsDetails
  */
 function ErrorIcon() {
   return (
@@ -28,7 +29,6 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
   const mapRef = useRef(null);
   const markerRef = useRef(null);
 
-  const [startedAt, setStartedAt] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [latLng, setLatLng] = useState(initialPosition || null);
   const [submitting, setSubmitting] = useState(false);
@@ -103,12 +103,6 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
 
   const validate = () => {
     const errs = {};
-    if (!startedAt) errs.startedAt = 'Оберіть дату та час.';
-    else {
-      const dt = new Date(startedAt);
-      if (isNaN(dt.getTime())) errs.startedAt = 'Невірний формат дати.';
-      else if (dt < new Date()) errs.startedAt = 'Час не може бути в минулому.';
-    }
     if (selectedParticipants.length < 1) errs.participants = 'Обери хоча б одного учасника.';
     if (selectedParticipants.length > 8) errs.participants = 'Максимум 8 учасників.';
     if (!latLng) errs.location = 'Постав мітку на карті.';
@@ -150,7 +144,7 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
         category: 'hangout',
         latitude: latLng[0],
         longitude: latLng[1],
-        started_at: new Date(startedAt).toISOString(),
+        started_at: new Date().toISOString(),
         participant_ids: selectedParticipants,
         geofence_radius_m: 50,
       };
@@ -188,19 +182,6 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
           )}
         </div>
         {clientErrors.location && <div className={styles.fieldError}><ErrorIcon />{clientErrors.location}</div>}
-      </div>
-
-      <div className={styles.field}>
-        <label>Дата та час *</label>
-        <input
-          type="datetime-local"
-          value={startedAt}
-          onChange={(e) => {
-            setStartedAt(e.target.value);
-            setClientErrors((s) => ({ ...s, startedAt: undefined }));
-          }}
-        />
-        {clientErrors.startedAt && <div className={styles.fieldError}><ErrorIcon />{clientErrors.startedAt}</div>}
       </div>
 
       <div className={styles.field}>

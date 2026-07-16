@@ -91,6 +91,32 @@ class ActivityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
 
+    @action(detail=False, methods=['get'], url_path='my-active')
+    def my_active(self, request):
+        """
+        Активний (live) збір поточного користувача, якщо є — фронт викликає
+        це при завантаженні сторінки, щоб не втрачати ongoing-стан після
+        перезавантаження (React-стейт сам по собі не переживає reload).
+        """
+        activity = (
+            self.get_queryset()
+            .filter(creator=request.user, live_status=Activity.LiveStatus.ACTIVE)
+            .order_by('-started_at')
+            .first()
+        )
+        if activity is None:
+            return Response(None)
+        serializer = self.get_serializer(activity)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='leave')
+    def leave(self, request, pk=None):
+        """Творець достроково завершує свій live-збір (кнопка «Вийти» на фронті)."""
+        activity = self.get_object()
+        activity.cancel()
+        serializer = self.get_serializer(activity)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['get'], url_path='near-me')
     def near_me(self, request):
         """Повертає активності поруч, відсортовані за відстанню."""
