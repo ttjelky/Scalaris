@@ -1,13 +1,16 @@
+from typing import Any
+
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
-from rest_framework import generics, permissions, status
-from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
+from rest_framework import mixins, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.users.serializers import UserPublicSerializer
 from .models import Activity, Invitation, Location
+from .permissions import IsCreatorOrReadOnly, IsInvitationReceiver
 from .serializers import (
     ActivityListSerializer,
     ActivitySerializer,
@@ -17,17 +20,34 @@ from .serializers import (
 )
 
 
-class LocationUpdateView(generics.CreateAPIView):
-    """POST — клієнт шле сюди свою позицію періодично (пінг). Завжди upsert для поточного юзера."""
+class LocationViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """Позиція поточного користувача: створення/оновлення без доступу до чужих записів."""
     serializer_class = LocationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        return Location.objects.filter(user=self.request.user)
 
-class NearbyUsersView(APIView):
-    """GET ?lat=&lng=&radius= — хто видимий на карті поруч"""
-    permission_classes = [permissions.IsAuthenticated]
+    def get_object(self):
+        obj, _ = Location.objects.get_or_create(user=self.request.user)
+        return obj
 
-    def get(self, request):
+    def create(self, request, *args: Any, **kwargs: Any):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save()
+        return Response(self.get_serializer(instance).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args: Any, **kwargs: Any):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(self.get_serializer(instance).data)
+
+    @action(detail=False, methods=['get'], url_path='nearby')
+    def nearby(self, request):
+        """Повертає користувачів поруч, які мають карту увімкненою."""
         try:
             lat = float(request.query_params['lat'])
             lng = float(request.query_params['lng'])
@@ -60,70 +80,64 @@ class NearbyUsersView(APIView):
         return Response(data)
 
 
-class ActivityListCreateView(generics.ListCreateAPIView):
-    """
-    GET  — список активностей. Якщо передані ?lat=&lng= — фільтр по радіусу і сортування по відстані.
-    POST — створити нову активність (creator = поточний юзер).
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_serializer_class(self):
-        return ActivitySerializer if self.request.method == 'POST' else ActivityListSerializer
+class ActivityViewSet(viewsets.ModelViewSet):
+    """CRUD для активностей із оптимізованим запитом до creator та пошуком поруч."""
+    serializer_class = ActivitySerializer
+    permission_classes = [permissions.IsAuthenticated, IsCreatorOrReadOnly]
 
     def get_queryset(self):
-        qs = Activity.objects.select_related('creator')
-        lat = self.request.query_params.get('lat')
-        lng = self.request.query_params.get('lng')
+        return Activity.objects.select_related('creator').all()
 
-        if lat and lng:
-            radius_km = float(self.request.query_params.get('radius', 10))
-            my_point = Point(float(lng), float(lat), srid=4326)
-            qs = (
-                qs.filter(point__distance_lte=(my_point, D(km=radius_km)))
-                .annotate(distance=Distance('point', my_point))
-                .order_by('distance')
+    def perform_create(self, serializer):
+        serializer.save(creator=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='near-me')
+    def near_me(self, request):
+        """Повертає активності поруч, відсортовані за відстанню."""
+        try:
+            lat = float(request.query_params['lat'])
+            lng = float(request.query_params['lng'])
+            radius_km = float(request.query_params.get('radius', 5))
+        except (KeyError, ValueError):
+            return Response(
+                {'detail': 'Потрібні числові параметри lat, lng (radius — опційний, км)'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        return qs
+
+        point = Point(lng, lat, srid=4326)
+        queryset = (
+            self.get_queryset()
+            .filter(point__distance_lte=(point, D(km=radius_km)))
+            .annotate(distance=Distance('point', point))
+            .order_by('distance')
+        )
+        serializer = ActivityListSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
-class ActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """GET/PATCH/DELETE — редагувати чи видаляти може лише творець активності"""
-    queryset = Activity.objects.select_related('creator')
-    serializer_class = ActivitySerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_update(self, serializer):
-        if serializer.instance.creator != self.request.user:
-            raise PermissionDenied('Редагувати активність може лише її автор')
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        if instance.creator != self.request.user:
-            raise PermissionDenied('Видаляти активність може лише її автор')
-        instance.delete()
-
-
-class InvitationListCreateView(generics.ListCreateAPIView):
-    """
-    GET  ?direction=received|sent — вхідні (за замовч.) або надіслані запрошення.
-    POST — надіслати запрошення (from_user = поточний юзер).
-    """
+class InvitationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Список і перегляд запрошень, де поточний юзер є відправником або отримувачем."""
     serializer_class = InvitationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        direction = self.request.query_params.get('direction', 'received')
-        base = Invitation.objects.select_related('from_user', 'to_user', 'activity')
-        if direction == 'sent':
-            return base.filter(from_user=user)
-        return base.filter(to_user=user)
+        return (
+            Invitation.objects.select_related('from_user', 'to_user', 'activity')
+            .filter(Q(from_user=user) | Q(to_user=user))
+            .order_by('-created_at')
+        )
 
-
-class InvitationRespondView(generics.UpdateAPIView):
-    """PATCH — прийняти або відхилити запрошення. Доступно лише отримувачу."""
-    serializer_class = InvitationRespondSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return Invitation.objects.filter(to_user=self.request.user)
+    @action(detail=True, methods=['patch'], permission_classes=[IsInvitationReceiver], url_path='respond')
+    def respond(self, request, pk=None):
+        """Оновлює статус запрошення на accepted/declined."""
+        invitation = self.get_object()
+        serializer = InvitationRespondSerializer(
+            invitation,
+            data=request.data,
+            partial=True,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(InvitationSerializer(invitation, context={'request': request}).data)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 
 import api from '../../api/axios';
@@ -6,30 +6,48 @@ import { useAuth } from '../../context/AuthContext';
 import MapView from '../../components/Map/MapView';
 import styles from './Home.module.css';
 
+const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
+
 // How far (px) the sheet has to be dragged before it snaps
 // collapsed/expanded instead of springing back.
 const COLLAPSE_THRESHOLD = 56;
 const EXPAND_THRESHOLD = 32;
+
+// Only one activity type exists for now. Kept as a list so more can be
+// added later without reshaping the pill row or the sheet-switching logic.
+const ACTIVITIES = [
+  {
+    id: 'gathering',
+    label: 'Збір',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M12 21s-7-6.1-7-11.2C5 5.5 8.1 3 12 3s7 2.5 7 6.8C19 14.9 12 21 12 21z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="9.5" r="2.3" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    ),
+  },
+];
 
 export default function Home() {
   const { user } = useAuth();
   const mapRef = useRef(null);
   const [position, setPosition] = useState(null);
   const [nearbyUsers, setNearbyUsers] = useState([]);
+  const [nearbyActivities, setNearbyActivities] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Which activity (if any) is currently being created. The bottom sheet
+  // switches its content based on this instead of opening a separate modal.
+  const [activeActivityId, setActiveActivityId] = useState(null);
+  const [toast, setToast] = useState(null);
+
   // --- Draggable bottom sheet state -------------------------------------
-  // Only two positions now: 'collapsed' (small badge) and 'expanded' (panel
-  // covering more than half the screen). Toggled by dragging the handle OR
-  // tapping the header (handle + hero row).
-  //
-  // The drag itself is intentionally kept OUT of React state: updating
-  // state on every pointermove forced a re-render (and a recompute of the
-  // sheet's backdrop-filter blur) on every single frame, which is what made
-  // dragging feel heavy/laggy. Instead we write the transform straight to
-  // the DOM node via a ref, throttled to one update per animation frame.
-  // React only steps back in once, when the finger lifts.
   const [sheetState, setSheetState] = useState('collapsed');
   const [isDragging, setIsDragging] = useState(false);
   const sheetRef = useRef(null);
@@ -38,6 +56,11 @@ export default function Home() {
   const isDraggingRef = useRef(false);
   const rafRef = useRef(null);
   const hasDragged = useRef(false);
+
+  const activeActivity = useMemo(
+    () => ACTIVITIES.find((a) => a.id === activeActivityId) || null,
+    [activeActivityId]
+  );
 
   const applyDragTransform = () => {
     rafRef.current = null;
@@ -49,12 +72,17 @@ export default function Home() {
   };
 
   const handlePointerDown = (e) => {
+    if (activeActivity) return; // no drag-to-collapse while filling out the form
     dragStartY.current = e.clientY;
     dragYRef.current = 0;
     hasDragged.current = false;
     isDraggingRef.current = true;
     setIsDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore if not supported
+    }
   };
 
   const handlePointerMove = (e) => {
@@ -62,8 +90,6 @@ export default function Home() {
     const delta = e.clientY - dragStartY.current;
     if (Math.abs(delta) > 4) hasDragged.current = true;
 
-    // Collapsed can only be dragged up (towards expanded), expanded can
-    // only be dragged down (towards collapsed) — there's nowhere else to go.
     const clamped = sheetState === 'collapsed' ? Math.min(0, delta) : Math.max(0, delta);
 
     dragYRef.current = clamped;
@@ -101,9 +127,18 @@ export default function Home() {
   );
 
   const handleHeaderClick = () => {
-    // A tap (not a drag) on the handle/hero row toggles the sheet.
+    if (activeActivity) return; // header no longer toggles collapse mid-form
     if (hasDragged.current) return;
     setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
+  };
+
+  const handlePillClick = (activity) => {
+    setActiveActivityId(activity.id);
+    setSheetState('expanded');
+  };
+
+  const handleCancelCreate = () => {
+    setActiveActivityId(null);
   };
   // ------------------------------------------------------------------------
 
@@ -114,13 +149,16 @@ export default function Home() {
       return undefined;
     }
 
+    let didRespond = false;
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
+        didRespond = true;
         const nextPosition = [pos.coords.latitude, pos.coords.longitude];
         setPosition(nextPosition);
         setError('');
         setLoading(false);
 
+        // nearby users (best-effort)
         try {
           const { data } = await api.get('/activities/locations/nearby/', {
             params: {
@@ -134,16 +172,18 @@ export default function Home() {
           setNearbyUsers([]);
         }
 
+        // sync location to backend (best-effort)
         try {
           await api.post('/activities/locations/', {
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
           });
         } catch {
-          // location sync is best-effort; the map still works without it
+          // ignore
         }
       },
       (err) => {
+        didRespond = true;
         setLoading(false);
         setError(
           err.code === err.PERMISSION_DENIED
@@ -154,14 +194,33 @@ export default function Home() {
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    // Fallback: якщо через 12s немає відповіді — показати повідомлення
+    const fallback = setTimeout(() => {
+      if (!didRespond) {
+        setLoading(false);
+        setError('Не вдалося швидко визначити місцезнаходження. Спробуйте оновити сторінку або дозволити геолокацію.');
+      }
+    }, 12000);
+
+    return () => {
+      clearTimeout(fallback);
+      try {
+        navigator.geolocation.clearWatch(watchId);
+      } catch {
+        // ignore
+      }
+    };
   }, []);
 
   const nearbyCount = useMemo(() => nearbyUsers.length, [nearbyUsers]);
 
   const recenterToMe = () => {
     if (position && mapRef.current) {
-      mapRef.current.setView(position, mapRef.current.getZoom(), { animate: true });
+      try {
+        mapRef.current.setView(position, mapRef.current.getZoom(), { animate: true });
+      } catch {
+        // if mapRef isn't a Leaflet map instance, ignore
+      }
     }
   };
   const sheetClassName = [
@@ -172,35 +231,70 @@ export default function Home() {
     .filter(Boolean)
     .join(' ');
 
+  // Activity created: show toast, refresh nearby activities, go back to the people view.
+  const handleActivityCreated = async (activity) => {
+    setActiveActivityId(null);
+    setSheetState('collapsed');
+    setToast('Збір створено успішно');
+    setTimeout(() => setToast(null), 3500);
+
+    if (position) {
+      try {
+        const { data } = await api.get('/activities/near-me/', {
+          params: { lat: position[0], lng: position[1], radius: 5 },
+        });
+        setNearbyActivities(data);
+      } catch {
+        // ignore errors here
+      }
+    }
+  };
+
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        <Link to="/profile" className={styles.greetingBlock}>
-          {user?.avatar ? (
-            <img src={user.avatar} alt="" className={styles.greetingAvatar} />
-          ) : (
-            <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
-          )}
-          <span className={styles.greeting}>{user?.username}</span>
-        </Link>
+        <div className={styles.topbarRow}>
+          <Link to="/profile" className={styles.greetingBlock}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className={styles.greetingAvatar} />
+            ) : (
+              <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
+            )}
+            <span className={styles.greeting}>{user?.username}</span>
+          </Link>
 
-        <button
-          className={styles.recenterButton}
-          onClick={recenterToMe}
-          type="button"
-          disabled={!position}
-          aria-label="Показати мою геопозицію"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-            <path
-              d="M12 2V5M12 19V22M2 12H5M19 12H22"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
+          <button
+            className={styles.recenterButton}
+            onClick={recenterToMe}
+            type="button"
+            disabled={!position}
+            aria-label="Показати мою геопозицію"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M12 2V5M12 19V22M2 12H5M19 12H22"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className={styles.activityPills}>
+          {ACTIVITIES.map((activity) => (
+            <button
+              key={activity.id}
+              type="button"
+              className={`${styles.activityPill} ${activeActivityId === activity.id ? styles.activityPillActive : ''}`}
+              onClick={() => handlePillClick(activity)}
+            >
+              {activity.icon}
+              <span>{activity.label}</span>
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className={styles.mapWrap}>
@@ -220,13 +314,18 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
-          <MapView ref={mapRef} position={position} nearbyUsers={nearbyUsers} />
+          <MapView
+            ref={mapRef}
+            position={position}
+            nearbyUsers={nearbyUsers}
+            activities={nearbyActivities}
+          />
         )}
       </div>
 
       <div
         className={`${styles.scrim} ${sheetState === 'expanded' ? styles.scrimVisible : ''}`}
-        onClick={() => setSheetState('collapsed')}
+        onClick={() => !activeActivity && setSheetState('collapsed')}
         aria-hidden="true"
       />
 
@@ -242,52 +341,84 @@ export default function Home() {
           />
 
           <div className={styles.heroRow}>
-            <div>
-              <p className={styles.kicker}>Твоя зона активності</p>
-              <h1 className={styles.heroTitle}>Люди поруч</h1>
-            </div>
-            <div className={styles.heroBadge}>
-              <span key={nearbyCount} className={styles.heroBadgeValue}>
-                {nearbyCount}
-              </span>
-              <span className={styles.heroBadgeLabel}>поруч</span>
-            </div>
+            {activeActivity ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.sheetBackBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelCreate();
+                  }}
+                  aria-label="Назад"
+                >
+                  ←
+                </button>
+                <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
+                <span className={styles.sheetBackSpacer} aria-hidden="true" />
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className={styles.kicker}>Твоя зона активності</p>
+                  <h1 className={styles.heroTitle}>Люди поруч</h1>
+                </div>
+                <div className={styles.heroBadge}>
+                  <span key={nearbyCount} className={styles.heroBadgeValue}>
+                    {nearbyCount}
+                  </span>
+                  <span className={styles.heroBadgeLabel}>поруч</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Always mounted (not conditionally rendered) so collapsing/expanding
-            animates the actual content height via CSS grid instead of the
-            content just popping in/out while the shell tries to catch up. */}
         <div
           className={`${styles.collapsibleContent} ${
             sheetState === 'collapsed' ? styles.collapsibleContentHidden : ''
           }`}
         >
           <div className={styles.collapsibleInner}>
-            <p className={styles.heroText}>
-              Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
-            </p>
+            {activeActivity ? (
+              <Suspense fallback={<div className={styles.formLoading}>Завантаження форми…</div>}>
+                <ActivityForm
+                  initialPosition={position}
+                  nearbyUsers={nearbyUsers}
+                  onCancel={handleCancelCreate}
+                  onCreated={handleActivityCreated}
+                />
+              </Suspense>
+            ) : (
+              <>
+                <p className={styles.heroText}>
+                  Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
+                </p>
 
-            <div className={styles.userList} key={sheetState}>
-              {nearbyUsers.length === 0 ? (
-                <div className={styles.emptyState}>
-                  Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
-                </div>
-              ) : (
-                nearbyUsers.map((person) => (
-                  <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
-                    <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
-                    <div className={styles.userMeta}>
-                      <div className={styles.userName}>{person.username}</div>
-                      <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                <div className={styles.userList} key={sheetState}>
+                  {nearbyUsers.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
                     </div>
-                  </Link>
-                ))
-              )}
-            </div>
+                  ) : (
+                    nearbyUsers.map((person) => (
+                      <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
+                        <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                        <div className={styles.userMeta}>
+                          <div className={styles.userName}>{person.username}</div>
+                          <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   );
 }

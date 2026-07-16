@@ -17,14 +17,58 @@
   right: 0;
   z-index: 700;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 12px;
   padding: 16px 18px;
   padding-top: max(16px, env(safe-area-inset-top));
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 100%);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.topbarRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activityPills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.activityPills::-webkit-scrollbar {
+  display: none;
+}
+
+.activityPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 9px 15px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-ink, #0b0b0c);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), border-color 0.15s var(--ease-track, ease),
+    transform 0.15s var(--ease-track, ease);
+}
+
+.activityPill:active {
+  transform: scale(0.95);
+}
+
+.activityPillActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
 }
 
 .greetingBlock {
@@ -495,4 +539,43 @@
 }
 .userCard:nth-child(n + 6) {
   animation-delay: 0.28s;
+}
+
+.sheetBackBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sheetBackSpacer {
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.formLoading {
+  padding: 24px 4px;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 1300;
 }
