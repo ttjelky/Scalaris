@@ -25,8 +25,24 @@ export function onAuthFailure(callback) {
   onAuthFailureCallback = callback;
 }
 
+// Endpoints that must be reachable without an (possibly stale/invalid)
+// access token attached. Sending a bad Bearer token here makes DRF's
+// authentication layer reject the request with 401 before it ever reaches
+// the view logic, even if permission_classes = [AllowAny] is set there.
+const PUBLIC_AUTH_PATHS = [
+  '/users/login',
+  '/users/register',
+  '/users/login/refresh',
+  '/users/password-reset',
+];
+
+function isPublicAuthCall(url) {
+  if (!url) return false;
+  return PUBLIC_AUTH_PATHS.some((path) => url.includes(path));
+}
+
 api.interceptors.request.use((config) => {
-  if (accessToken) {
+  if (accessToken && !isPublicAuthCall(config.url)) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
@@ -42,7 +58,7 @@ function refreshAccessToken() {
       baseURL: '/api',
       withCredentials: true,
     });
-    
+
     refreshPromise = refreshAxios
       .post('/users/login/refresh/', {})
       .then(({ data }) => {
@@ -66,7 +82,7 @@ api.interceptors.response.use(
     const { config, response } = error;
     const isRefreshCall = config?.url?.includes('/login/refresh/');
 
-    if (response?.status === 401 && !config._retry && !isRefreshCall) {
+    if (response?.status === 401 && !config._retry && !isRefreshCall && !isPublicAuthCall(config?.url)) {
       config._retry = true;
       try {
         const newAccess = await refreshAccessToken();
