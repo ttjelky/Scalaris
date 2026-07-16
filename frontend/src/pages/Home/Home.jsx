@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,7 +31,8 @@ function RecenterOnMove({ position }) {
 }
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const mapRef = useRef(null);
   const [position, setPosition] = useState(null);
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [error, setError] = useState('');
@@ -89,14 +90,40 @@ export default function Home() {
 
   const nearbyCount = useMemo(() => nearbyUsers.length, [nearbyUsers]);
 
+  const recenterToMe = () => {
+    if (position && mapRef.current) {
+      mapRef.current.setView(position, mapRef.current.getZoom(), { animate: true });
+    }
+  };
+
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <Link to="/profile" className={styles.greetingBlock}>
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" className={styles.greetingAvatar} />
+          ) : (
+            <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
+          )}
           <span className={styles.greeting}>{user?.username}</span>
         </Link>
-        <button className={styles.logoutButton} onClick={logout} type="button">
-          Вийти
+
+        <button
+          className={styles.recenterButton}
+          onClick={recenterToMe}
+          type="button"
+          disabled={!position}
+          aria-label="Показати мою геопозицію"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M12 2V5M12 19V22M2 12H5M19 12H22"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
       </header>
 
@@ -117,7 +144,7 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
-          <MapContainer center={position} zoom={14} zoomControl={false} className={styles.map}>
+          <MapContainer ref={mapRef} center={position} zoom={14} zoomControl={false} className={styles.map}>
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import styles from './Profile.module.css';
 
 export default function Profile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // No :id in the route (came from "/profile") → this is the logged-in
   // user's own profile, fetched via /users/me/ and editable.
@@ -21,6 +23,20 @@ export default function Profile() {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const onConfirmLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+      navigate('/', { replace: true });
+    } finally {
+      setLoggingOut(false);
+      setConfirmingLogout(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -178,7 +194,44 @@ export default function Profile() {
             {profile.bio || (isOwnProfile ? 'Додай опис про себе.' : 'Користувач ще не додав опис.')}
           </p>
         )}
+
+        {isOwnProfile && !editing && (
+          <button
+            className={styles.logoutButton}
+            onClick={() => setConfirmingLogout(true)}
+            type="button"
+          >
+            Вийти з акаунту
+          </button>
+        )}
       </div>
+
+      {confirmingLogout && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+          <div className={styles.modal}>
+            <h2 className={styles.modalTitle}>Вийти з акаунту?</h2>
+            <p className={styles.modalText}>Доведеться увійти знову, щоб продовжити користуватись застосунком.</p>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setConfirmingLogout(false)}
+                type="button"
+                disabled={loggingOut}
+              >
+                Скасувати
+              </button>
+              <button
+                className={styles.confirmLogoutButton}
+                onClick={onConfirmLogout}
+                type="button"
+                disabled={loggingOut}
+              >
+                {loggingOut ? 'Виходимо…' : 'Так, вийти'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
