@@ -1,39 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import MapView from '../../components/Map/MapView';
 import styles from './Home.module.css';
-
-// Small CSS dot markers instead of the default leaflet pin (which needs
-// bundler-specific asset handling and was rendering broken under Vite).
-const ownIcon = L.divIcon({
-  className: `leaflet-dot-icon ${styles.ownMarker}`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-const personIcon = L.divIcon({
-  className: `leaflet-dot-icon ${styles.personMarker}`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
 
 // How far (px) the sheet has to be dragged before it snaps
 // collapsed/expanded instead of springing back.
 const COLLAPSE_THRESHOLD = 56;
 const EXPAND_THRESHOLD = 32;
-
-function RecenterOnMove({ position }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
-  }, [position, map]);
-  return null;
-}
 
 export default function Home() {
   const { user } = useAuth();
@@ -244,21 +220,7 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
-          <MapContainer ref={mapRef} center={position} zoom={14} zoomControl={false} className={styles.map}>
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            />
-            <Marker position={position} icon={ownIcon} />
-            {nearbyUsers.map((person) => (
-              <Marker
-                key={person.id}
-                position={[person.latitude, person.longitude]}
-                icon={personIcon}
-              />
-            ))}
-            <RecenterOnMove position={position} />
-          </MapContainer>
+          <MapView ref={mapRef} position={position} nearbyUsers={nearbyUsers} />
         )}
       </div>
 
