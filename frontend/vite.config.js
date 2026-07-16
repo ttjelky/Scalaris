@@ -1,25 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import fs from 'fs'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), basicSsl()],
   server: {
-    host: '0.0.0.0', // Дозволяє доступ з телефону у Wi-Fi мережі
-    port: 5174,      // Порт фронтенду
-    https: {
-      // Читаємо ваші згенеровані сертифікати з папки certs
-      key: fs.readFileSync('./certs/192.168.0.106+2-key.pem'),
-      cert: fs.readFileSync('./certs/192.168.0.106+2.pem'),
-    },
+    host: '0.0.0.0',
+    port: 5174,
     proxy: {
-      // Усі запити, які починаються з /api, Vite буде перенаправляти на Django
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'http://192.168.0.117:8000',
         changeOrigin: true,
         secure: false,
-        ws: true,
       }
     }
   }
