@@ -33,6 +33,7 @@ const ICONS = {
 const ITEMS = [
   { key: 'home', to: '/home', label: 'Головна', icon: 'home' },
   { key: 'profile', to: '/profile', label: 'Профіль', icon: 'user' },
+  { key: 'blocked', label: 'Заблоковані користувачі', icon: 'bell', disabled: true, badge: 'Скоро' },
   { key: 'notifications', label: 'Сповіщення', icon: 'bell', disabled: true, badge: 'Скоро' },
 ];
 
