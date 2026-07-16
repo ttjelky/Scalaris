@@ -4,7 +4,25 @@ from rest_framework import serializers
 from .models import User
 
 
+class RelativeImageField(serializers.ImageField):
+    """Like ImageField, but always serializes to a relative (MEDIA_URL-based)
+    path instead of an absolute URI.
+
+    DRF's default ImageField.to_representation() calls
+    `request.build_absolute_uri(value.url)` whenever a `request` is present
+    in the serializer context (which it always is for API views). This
+    override skips that and just returns `value.url` as-is, so uploads
+    still work exactly as before — only the read representation changes.
+    """
+
+    def to_representation(self, value):
+        if not value:
+            return None
+        return value.url
+
+
 class UserSerializer(serializers.ModelSerializer):
+    avatar = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
@@ -13,6 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserPublicSerializer(serializers.ModelSerializer):
+    avatar = RelativeImageField(read_only=True)
 
     class Meta:
         model = User

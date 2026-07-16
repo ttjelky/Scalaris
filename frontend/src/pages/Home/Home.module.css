@@ -27,6 +27,59 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.visibilityButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-ink, #0b0b0c);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
+    opacity 0.2s var(--ease-track, ease);
+}
+
+.visibilityButton[aria-pressed='true'],
+.visibilityButton[aria-pressed='false'] {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--color-line, #e5e5e5);
+  color: var(--color-ink, #0b0b0c);
+}
+
+/* Desktop: highlight green while the pointer is actually hovering. */
+@media (hover: hover) and (pointer: fine) {
+  .visibilityButton:hover:not(:disabled) {
+    background: var(--color-accent, #c6ff3d);
+    border-color: var(--color-accent, #c6ff3d);
+    color: var(--color-ink, #0b0b0c);
+  }
+}
+
+/* Touch: flash green only while the finger is down — :active releases on
+   touchend, unlike :hover which would otherwise "stick" after tapping. */
+.visibilityButton:active:not(:disabled) {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  transform: scale(0.92);
+}
+
+.visibilityButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .greetingBlock {
   display: inline-flex;
   align-items: center;
@@ -117,6 +170,56 @@
   height: 100%;
 }
 
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Leaflet gives div-icons a default white box + border — strip that so
+   only our custom dot styling below is visible. */
+:global(.leaflet-dot-icon) {
+  background: transparent;
+  border: none;
+}
+
+.ownMarker {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent, #c6ff3d);
+  border: 3px solid var(--color-ink, #0b0b0c);
+  box-shadow: 0 0 0 5px rgba(198, 255, 61, 0.3);
+}
+
+.personMarker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* Username label above each person marker. Leaflet's default tooltip
+   styling (white box + small arrow) stays fixed in screen pixels, but we
+   override its background/shadow here so it stays legible at any zoom
+   level instead of blending into the light basemap once you zoom in. */
+:global(.leaflet-tooltip.leaflet-tooltip-top)::before {
+  display: none;
+}
+
+.markerLabel {
+  background: rgba(11, 11, 12, 0.85) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--radius-pill, 999px) !important;
+  padding: 2px 8px !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  pointer-events: none !important;
+}
+
 .overlayState {
   position: absolute;
   inset: 0;
@@ -181,80 +284,36 @@
      this cap regardless. */
   max-height: 80dvh;
   overflow-y: auto;
-  /* Smooth, no-overshoot deceleration for size/shape changes (an overshoot
-     here would make list content look like it's briefly clipping), but a
-     springy little overshoot on the drag-release snap-back (transform) for
-     a bit of life. */
-  transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    padding 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* While actively dragging, kill the transition so the sheet tracks the
-   pointer 1:1 instead of lagging behind it. Also drop the blur strength
-   and promote the element to its own compositor layer — recomputing a
-   20px backdrop-filter blur on every dragged frame was the main source
-   of the jank/heaviness. */
+/* Small badge state: only the handle + hero row stay visible. The text and
+   list below animate out via their own max-height/opacity transitions
+   (see .heroText / .userList) instead of snapping with display:none, so the
+   whole sheet reads as one continuous collapse rather than a hard cut. */
+.sheetCollapsed {
+  max-height: 108px;
+  overflow: hidden;
+}
+
+/* While actively dragging, the transform is written straight to the DOM
+   node (see applyDragTransform in Home.jsx), so the CSS transition must be
+   switched off — otherwise it fights the per-frame updates and the sheet
+   feels sluggish. */
 .sheetDragging {
   transition: none;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  will-change: transform;
 }
 
-/* Collapsed = small pill badge that gets out of the map's way. The content
-   below the header shrinks via .collapsibleContent, this just restyles
-   the shell + hero row to a compact pill. */
-.sheetCollapsed {
-  padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
-  border-radius: 26px;
+.sheetDragging .heroText,
+.sheetDragging .userList {
+  transition: none;
 }
 
-.sheetCollapsed .heroRow {
-  align-items: center;
-}
-
-.sheetCollapsed .heroTitle {
-  font-size: 20px;
-}
-
-.sheetCollapsed .heroBadge {
-  min-width: 48px;
-  height: 48px;
-}
-
-.sheetCollapsed .heroBadgeValue {
-  font-size: 1.05rem;
-}
-
-.sheetCollapsed .heroBadgeLabel {
-  font-size: 0.55rem;
-}
-
-/* Handle + hero row: tapping anywhere here (without dragging) toggles
-   collapsed/expanded, in addition to the handle's drag gesture. */
 .sheetHeader {
   cursor: pointer;
-}
-
-/* Collapses the hero-row's siblings smoothly by animating an intrinsic
-   grid row (1fr -> 0fr) instead of toggling display or max-height, so the
-   box height and the content height always stay in lockstep. */
-.collapsibleContent {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.34s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.collapsibleContentHidden {
-  grid-template-rows: 0fr;
-}
-
-.collapsibleInner {
-  overflow: hidden;
-  min-height: 0;
+  touch-action: none;
+  user-select: none;
 }
 
 .sheetHandle {
@@ -334,12 +393,35 @@
   line-height: 1.4;
   color: var(--color-ink-soft, #6b6b70);
   max-width: 42ch;
+  max-height: 60px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.22s ease, margin 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheetCollapsed .heroText {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
 }
 
 .userList {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.02s,
+    opacity 0.2s ease;
+}
+
+.sheetCollapsed .userList {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.15s ease;
 }
 
 .userCard {
@@ -397,18 +479,11 @@
   .laneDot {
     animation: none;
   }
-  .pulseDotActive {
-    animation: none;
-  }
-  .heroBadgeValue {
-    animation: none;
-  }
-  .userCard {
-    animation: none;
-  }
-  .scrim,
-  .sheet {
-    transition-duration: 0.01ms !important;
+
+  .sheet,
+  .heroText,
+  .userList {
+    transition: none;
   }
 }
 

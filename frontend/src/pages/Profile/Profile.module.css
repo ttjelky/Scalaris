@@ -2,6 +2,7 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   background: var(--color-bg, #ffffff);
   color: var(--color-ink, #0b0b0c);
   font-family: var(--font-body, 'Inter', system-ui, -apple-system, sans-serif);
@@ -124,11 +125,14 @@
 
 .bio {
   margin: 0 auto;
-  max-width: 40ch;
+  max-width: min(40ch, 100%);
+  padding: 0 24px;
   text-align: center;
   font-size: 15px;
   line-height: 1.5;
   color: var(--color-ink-soft, #6b6b70);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .editForm {

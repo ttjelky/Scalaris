@@ -7,7 +7,7 @@ import styles from './Profile.module.css';
 export default function Profile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, updateUser } = useAuth();
 
   // No :id in the route (came from "/profile") → this is the logged-in
   // user's own profile, fetched via /users/me/ and editable.
@@ -82,6 +82,7 @@ export default function Profile() {
       // don't override it manually or the upload will be malformed.
       const { data } = await api.patch('/users/me/', formData);
       setProfile(data);
+      if (isOwnProfile) updateUser(data);
       setEditing(false);
       setAvatarFile(null);
       setAvatarPreview(null);
