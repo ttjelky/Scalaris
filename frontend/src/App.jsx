@@ -9,6 +9,7 @@ import PasswordResetConfirm from './pages/Auth/PasswordResetConfirm';
 import Home from './pages/Home/Home';
 import WelcomeScreen from './pages/Welcome/WelcomeScreen';
 import Profile from './pages/Profile/Profile';
+import DiscordCallback from './pages/OAuth/DiscordCallback';
 import './styles/tokens.css';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

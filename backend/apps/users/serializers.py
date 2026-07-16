@@ -1,22 +1,51 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import Block, Report, User
+
+
+class RelativeImageField(serializers.ImageField):
+    """Like ImageField, but always serializes to a relative (MEDIA_URL-based)
+    path instead of an absolute URI.
+
+    DRF's default ImageField.to_representation() calls
+    `request.build_absolute_uri(value.url)` whenever a `request` is present
+    in the serializer context (which it always is for API views). This
+    override skips that and just returns `value.url` as-is, so uploads
+    still work exactly as before — only the read representation changes.
+    """
+
+    def to_representation(self, value):
+        if not value:
+            return None
+        return value.url
 
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar = RelativeImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'avatar', 'bio', 'is_visible_on_map']
-        read_only_fields = ['id']
+        fields = [
+            'id', 'username', 'email', 'avatar', 'bio', 'is_visible_on_map',
+            'discord_username', 'telegram_username',
+        ]
+        read_only_fields = ['id', 'discord_username', 'telegram_username']
 
 
 class UserPublicSerializer(serializers.ModelSerializer):
+    avatar = RelativeImageField(read_only=True)
+    is_blocked = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio']
+        fields = ['id', 'username', 'avatar', 'bio', 'is_blocked']
+
+    def get_is_blocked(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return Block.objects.filter(blocker=request.user, blocked=obj).exists()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -68,3 +97,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if attrs['password'] != attrs.pop('password_confirm'):
             raise serializers.ValidationError({'password_confirm': "Passwords don't match."})
         return attrs
+
+
+class ReportSerializer(serializers.Serializer):
+    reason = serializers.ChoiceField(choices=Report.Reason.choices)
+    details = serializers.CharField(max_length=500, required=False, allow_blank=True)

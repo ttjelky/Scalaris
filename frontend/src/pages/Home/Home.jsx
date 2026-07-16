@@ -1,5 +1,9 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
+import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -7,12 +11,45 @@ import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
 import styles from './Home.module.css';
 
-const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
+// Small CSS dot markers instead of the default leaflet pin (which needs
+// bundler-specific asset handling and was rendering broken under Vite).
+const ownIcon = L.divIcon({
+  className: `leaflet-dot-icon ${styles.ownMarker}`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
 
-// How far (px) the sheet has to be dragged before it snaps
-// collapsed/expanded instead of springing back.
-const COLLAPSE_THRESHOLD = 56;
-const EXPAND_THRESHOLD = 32;
+const personIcon = L.divIcon({
+  className: `leaflet-dot-icon ${styles.personMarker}`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
+
+// Drag distance (px) needed to trigger a state change when releasing the sheet.
+const COLLAPSE_THRESHOLD = 60;
+const EXPAND_THRESHOLD = 40;
+
+// Nicknames only show once you're this many zoom levels away from max zoom
+// (i.e. reasonably close in) — otherwise crowded areas turn into a wall of text.
+const NICKNAME_ZOOM_OFFSET = 3;
+
+function RecenterOnMove({ position }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView(position, map.getZoom(), { animate: true });
+  }, [position, map]);
+  return null;
+}
+
+function ZoomWatcher({ onZoomChange }) {
+  const map = useMapEvents({
+    zoomend: () => onZoomChange(map.getZoom(), map.getMaxZoom()),
+  });
+  useEffect(() => {
+    onZoomChange(map.getZoom(), map.getMaxZoom());
+  }, [map, onZoomChange]);
+  return null;
+}
 
 // Invitation.Status choices from the backend, mapped to display text and
 // a CSS-module class suffix for the status badge in the ongoing view.
@@ -89,13 +126,19 @@ const ACTIVITIES = [
 ];
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const mapRef = useRef(null);
   const [position, setPosition] = useState(null);
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [nearbyActivities, setNearbyActivities] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+  const [showNicknames, setShowNicknames] = useState(false);
+
+  const handleZoomChange = useCallback((zoom, maxZoom) => {
+    setShowNicknames(zoom >= maxZoom - NICKNAME_ZOOM_OFFSET);
+  }, []);
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -362,6 +405,21 @@ export default function Home() {
       }
     }
   };
+
+  const visibleOnMap = user?.is_visible_on_map ?? true;
+
+  const toggleVisibility = async () => {
+    const next = !visibleOnMap;
+    updateUser({ is_visible_on_map: next }); // optimistic
+    setTogglingVisibility(true);
+    try {
+      await api.patch('/users/me/', { is_visible_on_map: next });
+    } catch {
+      updateUser({ is_visible_on_map: !next }); // revert on failure
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
   const sheetClassName = [
     styles.sheet,
     sheetState === 'collapsed' && styles.sheetCollapsed,
@@ -395,6 +453,66 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
+          <Link to="/profile" className={styles.greetingBlock}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className={styles.greetingAvatar} />
+            ) : (
+              <span className={styles.greetingAvatarFallback}>{user?.username?.slice(0, 1).toUpperCase()}</span>
+            )}
+            <span className={styles.greeting}>{user?.username}</span>
+          </Link>
+
+          <button
+            className={styles.visibilityButton}
+            onClick={toggleVisibility}
+            type="button"
+            disabled={togglingVisibility}
+            aria-pressed={visibleOnMap}
+            aria-label={visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті'}
+            title={visibleOnMap ? 'Видимий на карті' : 'Прихований з карти'}
+          >
+            {visibleOnMap ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M17.94 17.94C16.23 19.24 14.24 20 12 20C5 20 1 13 1 13C2.24 10.72 3.9 8.87 5.76 7.53M9.9 4.24C10.58 4.09 11.28 4 12 4C19 4 23 12 23 12C22.39 13.15 21.62 14.29 20.72 15.35M14.12 14.12C13.63 14.65 12.86 15 12 15C10.34 15 9 13.66 9 12C9 11.14 9.35 10.37 9.88 9.88"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M1 1L23 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        <button
+          className={styles.recenterButton}
+          onClick={recenterToMe}
+          type="button"
+          disabled={!position}
+          aria-label="Показати мою геопозицію"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M12 2V5M12 19V22M2 12H5M19 12H22"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
           <Navbar />
           <div className={styles.topbarActions}>
             <button
@@ -460,6 +578,67 @@ export default function Home() {
         )}
 
         {!loading && !error && position && (
+          <MapContainer ref={mapRef} center={position} zoom={14} zoomControl={false} className={styles.map}>
+            <TileLayer
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              maxZoom={19}
+            />
+            <Marker position={position} icon={ownIcon} />
+            {nearbyUsers.map((person) => (
+              <Marker
+                key={person.id}
+                position={[person.latitude, person.longitude]}
+                icon={personIcon}
+              >
+                {showNicknames && (
+                  <Tooltip
+                    className={styles.markerLabel}
+                    direction="top"
+                    offset={[0, -10]}
+                    permanent
+                    interactive={false}
+                  >
+                    {person.username}
+                  </Tooltip>
+                )}
+              </Marker>
+            ))}
+            <RecenterOnMove position={position} />
+            <ZoomWatcher onZoomChange={handleZoomChange} />
+          </MapContainer>
+        )}
+      </div>
+
+      <div className={sheetClassName} ref={sheetRef}>
+        <div
+          className={styles.sheetHeader}
+          role="button"
+          tabIndex={0}
+          aria-expanded={sheetState === 'expanded'}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={finishDrag}
+          onPointerCancel={finishDrag}
+          onClick={handleHeaderClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleHeaderClick();
+            }
+          }}
+        >
+          <div className={styles.sheetHandle} aria-hidden="true" />
+
+          <div className={styles.heroRow}>
+            <div>
+              <p className={styles.kicker}>Твоя зона активності</p>
+              <h1 className={styles.heroTitle}>Люди поруч</h1>
+            </div>
+            <div className={styles.heroBadge}>
+              <span className={styles.heroBadgeValue}>{nearbyCount}</span>
+              <span className={styles.heroBadgeLabel}>поруч</span>
+            </div>
           <MapView
             ref={mapRef}
             position={position}
