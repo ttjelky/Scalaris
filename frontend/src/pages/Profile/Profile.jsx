@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
-import { useAuth } from '../../context/AuthContext';
+import Navbar from '../../components/Navbar/Navbar';
 import styles from './Profile.module.css';
 
 export default function Profile() {
@@ -249,10 +249,13 @@ export default function Profile() {
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        <button className={styles.back} onClick={() => navigate(-1)} type="button">
-          <span className={styles.backArrow} aria-hidden="true">←</span>
-          Назад
-        </button>
+        <div className={styles.topbarLeft}>
+          <Navbar />
+          <button className={styles.back} onClick={() => navigate(-1)} type="button">
+            <span className={styles.backArrow} aria-hidden="true">←</span>
+            Назад
+          </button>
+        </div>
         {isOwnProfile && !editing && (
           <button className={styles.editButton} onClick={() => setEditing(true)} type="button">
             Редагувати

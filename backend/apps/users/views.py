@@ -52,8 +52,15 @@ class PasswordResetRateThrottle(AnonRateThrottle):
 
 
 class RegisterView(generics.CreateAPIView):
+    # Explicitly skip authentication for this public endpoint. Without this,
+    # DRF's DEFAULT_AUTHENTICATION_CLASSES (JWTAuthentication) still runs
+    # first and will reject the request with 401 if the client happens to
+    # send a stale/expired Authorization header — permission_classes =
+    # [AllowAny] alone does NOT protect against that, since authentication
+    # and permission checks are separate stages.
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     throttle_classes = [RegisterRateThrottle]
 
@@ -125,6 +132,7 @@ class LogoutView(APIView):
     This intentionally accepts anonymous requests so a stale/expired access
     token cannot block logout from the browser. The refresh cookie is still
     removed even when no valid token is available."""
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -147,6 +155,7 @@ class PasswordResetView(APIView):
     email exists, so the endpoint can't be used to enumerate registered
     accounts (previously the serializer raised 400 for unknown emails,
     which leaked exactly that)."""
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PasswordResetRateThrottle]
 
@@ -189,6 +198,7 @@ class PasswordResetView(APIView):
 
 class PasswordResetConfirmView(APIView):
     """Confirm password reset with token and new password."""
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):

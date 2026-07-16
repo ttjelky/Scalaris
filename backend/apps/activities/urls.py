@@ -1,21 +1,14 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
-from .views import (
-    ActivityDetailView,
-    ActivityListCreateView,
-    InvitationListCreateView,
-    InvitationRespondView,
-    LocationUpdateView,
-    NearbyUsersView,
-)
+from .views import ActivityViewSet, InvitationViewSet, LocationViewSet
+
+router = DefaultRouter()
+router.register(r'locations', LocationViewSet, basename='location')
+router.register(r'invitations', InvitationViewSet, basename='invitation')
+router.register(r'', ActivityViewSet, basename='activity')
 
 urlpatterns = [
-    path('locations/', LocationUpdateView.as_view(), name='location-update'),
-    path('locations/nearby/', NearbyUsersView.as_view(), name='nearby-users'),
-
-    path('activities/', ActivityListCreateView.as_view(), name='activity-list'),
-    path('activities/<int:pk>/', ActivityDetailView.as_view(), name='activity-detail'),
-
-    path('invitations/', InvitationListCreateView.as_view(), name='invitation-list'),
-    path('invitations/<int:pk>/respond/', InvitationRespondView.as_view(), name='invitation-respond'),
+    path('', include(router.urls)),
+    path('locations/nearby/', LocationViewSet.as_view({'get': 'nearby'}), name='location-nearby'),
 ]

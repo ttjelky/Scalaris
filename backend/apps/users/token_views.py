@@ -36,6 +36,17 @@ class EmailTokenObtainPairView(TokenObtainPairView):
     the response body — it's set as an httpOnly cookie, and only the
     short-lived access token is returned to JS."""
 
+    # TokenObtainPairView already sets permission_classes = (AllowAny,), but
+    # it does NOT override authentication_classes — so DRF's
+    # DEFAULT_AUTHENTICATION_CLASSES (JWTAuthentication) still runs on this
+    # endpoint. If the client sends a stale/expired Authorization header
+    # (e.g. leftover in memory from a previous session), JWTAuthentication
+    # rejects the request with 401 before the login serializer ever gets a
+    # chance to check the submitted email/password. AllowAny does not
+    # protect against this because authentication and permission checks are
+    # separate stages — this endpoint must not authenticate the request at
+    # all, since its whole purpose is to issue new credentials.
+    authentication_classes = []
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
     throttle_classes = [LoginRateThrottle]
 
@@ -51,6 +62,11 @@ class CookieTokenRefreshView(TokenRefreshView):
     refresh token from the httpOnly cookie instead of the request body,
     and — because ROTATE_REFRESH_TOKENS is on — writes the newly rotated
     refresh token back into the cookie rather than the response body."""
+
+    # Same reasoning as EmailTokenObtainPairView above: this endpoint issues
+    # credentials from the refresh cookie alone and must not be gated by a
+    # (possibly stale) Authorization header.
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME)
