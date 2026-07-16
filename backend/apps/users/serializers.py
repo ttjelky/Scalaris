@@ -66,13 +66,16 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class PasswordResetSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    """Only validates that `email` is a well-formed email address.
 
-    def validate_email(self, value):
-        if not User.objects.filter(email__iexact=value).exists():
-            # Don't reveal if email exists or not for security
-            raise serializers.ValidationError('If an account with this email exists, you will receive a password reset link.')
-        return value
+    Deliberately does NOT check whether the address belongs to a real
+    account: that check now lives entirely in PasswordResetView, which
+    always returns the same 200 response either way. Doing the existence
+    check here used to return 400 for unknown emails vs. 200 for known
+    ones — a textbook account-enumeration oracle via the status code,
+    regardless of what the error text said.
+    """
+    email = serializers.EmailField()
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):

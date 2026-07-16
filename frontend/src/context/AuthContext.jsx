@@ -5,6 +5,12 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  // `loading` означає ОДНЕ конкретне: "ми ще не знаємо, чи є валідна сесія"
+  // (перевірка при старті додатку). Це НЕ індикатор "триває запит логіну" —
+  // за це відповідає локальний `pending` у самих формах Login/Register.
+  // Раніше login() теж смикав цей прапорець, і будь-яка спроба входу
+  // (навіть з неправильним паролем) на мить показувала повноекранний
+  // "Checking your session..." замість форми з помилкою.
   const [loading, setLoading] = useState(true);
   const [authFailed, setAuthFailed] = useState(false);
   const authBootstrapPromiseRef = useRef(null);
@@ -40,11 +46,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (login, password) => {
-    setLoading(true);
-    setAuthFailed(false);
+    // Навмисно НЕ чіпаємо тут `loading` — форма сама показує свій pending-стан.
     const { data } = await api.post('/users/login/', { username: login, password });
     setAccessToken(data.access);
-    // Fetch user details after setting access token
+    setAuthFailed(false);
+    // Успішний логін: підтягуємо профіль. loadMe() сам виставить/скине
+    // `loading`, але оскільки на цей момент бутстрап вже давно завершено
+    // (loading === false), це не викличе жодного повноекранного флешу —
+    // просто оновиться `user` і форма зробить navigate().
     await loadMe();
   };
 

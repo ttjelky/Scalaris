@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import MapView from '../../components/Map/MapView';
 import styles from './Home.module.css';
 
 // Small CSS dot markers instead of the default leaflet pin (which needs
@@ -377,26 +378,37 @@ export default function Home() {
           </div>
         </div>
 
-        <p className={styles.heroText}>
-          Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
-        </p>
+        {/* Always mounted (not conditionally rendered) so collapsing/expanding
+            animates the actual content height via CSS grid instead of the
+            content just popping in/out while the shell tries to catch up. */}
+        <div
+          className={`${styles.collapsibleContent} ${
+            sheetState === 'collapsed' ? styles.collapsibleContentHidden : ''
+          }`}
+        >
+          <div className={styles.collapsibleInner}>
+            <p className={styles.heroText}>
+              Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
+            </p>
 
-        <div className={styles.userList}>
-          {nearbyUsers.length === 0 ? (
-            <div className={styles.emptyState}>
-              Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
-            </div>
-          ) : (
-            nearbyUsers.map((person) => (
-              <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
-                <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
-                <div className={styles.userMeta}>
-                  <div className={styles.userName}>{person.username}</div>
-                  <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+            <div className={styles.userList} key={sheetState}>
+              {nearbyUsers.length === 0 ? (
+                <div className={styles.emptyState}>
+                  Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
                 </div>
-              </Link>
-            ))
-          )}
+              ) : (
+                nearbyUsers.map((person) => (
+                  <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
+                    <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                    <div className={styles.userMeta}>
+                      <div className={styles.userName}>{person.username}</div>
+                      <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
