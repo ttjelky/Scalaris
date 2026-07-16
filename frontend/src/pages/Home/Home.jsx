@@ -54,7 +54,7 @@ export default function Home() {
   // dragging feel heavy/laggy. Instead we write the transform straight to
   // the DOM node via a ref, throttled to one update per animation frame.
   // React only steps back in once, when the finger lifts.
-  const [sheetState, setSheetState] = useState('expanded');
+  const [sheetState, setSheetState] = useState('collapsed');
   const [isDragging, setIsDragging] = useState(false);
   const sheetRef = useRef(null);
   const dragStartY = useRef(0);
@@ -306,22 +306,6 @@ export default function Home() {
               Радіус 5 км. Приєднуйся до когось поруч або чекай, поки хтось приєднається до тебе.
             </p>
 
-        <div className={styles.userList}>
-          {nearbyUsers.length === 0 ? (
-            <div className={styles.emptyState}>
-              Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
-            </div>
-          ) : (
-            nearbyUsers.map((person) => (
-              <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
-                <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
-                <div className={styles.userMeta}>
-                  <div className={styles.userName}>{person.username}</div>
-                  <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
-                </div>
-              </Link>
-            ))
-          )}
             <div className={styles.userList} key={sheetState}>
               {nearbyUsers.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -329,13 +313,13 @@ export default function Home() {
                 </div>
               ) : (
                 nearbyUsers.map((person) => (
-                  <div className={styles.userCard} key={person.id}>
+                  <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
                     <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
                     <div className={styles.userMeta}>
                       <div className={styles.userName}>{person.username}</div>
                       <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
