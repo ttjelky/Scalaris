@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -91,13 +92,9 @@ export default function Home() {
   return (
     <div className={styles.screen}>
       <header className={styles.topbar}>
-        <div className={styles.greetingBlock}>
-          <span className={styles.eyebrow}>
-            <span className={`${styles.pulseDot} ${loading ? styles.pulseDotActive : ''}`} aria-hidden="true" />
-            Наживо
-          </span>
-          <div className={styles.greeting}>Привіт, {user?.username}</div>
-        </div>
+        <Link to="/profile" className={styles.greetingBlock}>
+          <span className={styles.greeting}>{user?.username}</span>
+        </Link>
         <button className={styles.logoutButton} onClick={logout} type="button">
           Вийти
         </button>
@@ -163,13 +160,13 @@ export default function Home() {
             </div>
           ) : (
             nearbyUsers.map((person) => (
-              <div className={styles.userCard} key={person.id}>
+              <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
                 <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
                 <div className={styles.userMeta}>
                   <div className={styles.userName}>{person.username}</div>
                   <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>
