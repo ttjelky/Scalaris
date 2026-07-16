@@ -71,8 +71,14 @@ export function AuthProvider({ children }) {
     setLoading(false);
   };
 
+  // Merge partial fields into the current user (e.g. after a PATCH /users/me/)
+  // so the rest of the app sees the update immediately, without a refetch.
+  const updateUser = (updates) => {
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
+
   const value = useMemo(
-    () => ({ user, loading, authFailed, isAuthenticated: !!user, login, register, logout }),
+    () => ({ user, loading, authFailed, isAuthenticated: !!user, login, register, logout, updateUser }),
     [user, loading, authFailed]
   );
 

@@ -27,6 +27,48 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.visibilityButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-ink, #0b0b0c);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
+    opacity 0.2s var(--ease-track, ease);
+}
+
+.visibilityButton[aria-pressed='false'] {
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.visibilityButton:hover:not(:disabled) {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+}
+
+.visibilityButton:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.visibilityButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .greetingBlock {
   display: inline-flex;
   align-items: center;
@@ -147,6 +189,26 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
+/* Username label above each person marker. Leaflet's default tooltip
+   styling (white box + small arrow) stays fixed in screen pixels, but we
+   override its background/shadow here so it stays legible at any zoom
+   level instead of blending into the light basemap once you zoom in. */
+:global(.leaflet-tooltip.leaflet-tooltip-top)::before {
+  display: none;
+}
+
+.markerLabel {
+  background: rgba(11, 11, 12, 0.85) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: var(--radius-pill, 999px) !important;
+  padding: 2px 8px !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  pointer-events: none !important;
+}
+
 .overlayState {
   position: absolute;
   inset: 0;
@@ -207,6 +269,36 @@
   padding: 16px 18px max(16px, env(safe-area-inset-bottom));
   max-height: 42%;
   overflow-y: auto;
+  transition: max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Small badge state: only the handle + hero row stay visible. The text and
+   list below animate out via their own max-height/opacity transitions
+   (see .heroText / .userList) instead of snapping with display:none, so the
+   whole sheet reads as one continuous collapse rather than a hard cut. */
+.sheetCollapsed {
+  max-height: 108px;
+  overflow: hidden;
+}
+
+/* While actively dragging, the transform is written straight to the DOM
+   node (see applyDragTransform in Home.jsx), so the CSS transition must be
+   switched off — otherwise it fights the per-frame updates and the sheet
+   feels sluggish. */
+.sheetDragging {
+  transition: none;
+}
+
+.sheetDragging .heroText,
+.sheetDragging .userList {
+  transition: none;
+}
+
+.sheetHeader {
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
 .sheetHandle {
@@ -278,12 +370,35 @@
   line-height: 1.4;
   color: var(--color-ink-soft, #6b6b70);
   max-width: 42ch;
+  max-height: 60px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.22s ease, margin 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheetCollapsed .heroText {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
 }
 
 .userList {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.02s,
+    opacity 0.2s ease;
+}
+
+.sheetCollapsed .userList {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.15s ease;
 }
 
 .userCard {
@@ -340,6 +455,12 @@
 @media (prefers-reduced-motion: reduce) {
   .laneDot {
     animation: none;
+  }
+
+  .sheet,
+  .heroText,
+  .userList {
+    transition: none;
   }
 }
 

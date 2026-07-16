@@ -12,6 +12,11 @@ export default defineConfig({
         target: 'http://192.168.0.117:8000',
         changeOrigin: true,
         secure: false,
+      },
+      '/media': {
+        target: 'http://192.168.0.117:8000',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }
