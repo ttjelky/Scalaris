@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { MapContainer, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -112,6 +112,40 @@ const gatheringIcon = L.divIcon({
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 });
+
+const CHECKPOINT_SIZE = 30;
+
+function makeCheckpointIcon(order, isCurrent, isPassed) {
+  let className = styles.checkpointMarker;
+  if (isCurrent) className += ` ${styles.checkpointMarkerCurrent}`;
+  else if (isPassed) className += ` ${styles.checkpointMarkerPassed}`;
+  return L.divIcon({
+    className: 'leaflet-checkpoint-icon',
+    html: `<div class="${className}">${order}</div>`,
+    iconSize: [CHECKPOINT_SIZE, CHECKPOINT_SIZE],
+    iconAnchor: [CHECKPOINT_SIZE / 2, CHECKPOINT_SIZE / 2],
+  });
+}
+
+function CheckpointLayer({ checkpoints, currentCheckpointId, passedCheckpointIds }) {
+  if (!checkpoints || checkpoints.length === 0) return null;
+
+  return checkpoints.map((cp) => {
+    const isCurrent = cp.id === currentCheckpointId;
+    const isPassed = passedCheckpointIds.includes(cp.id);
+    return (
+      <Marker
+        key={`cp-${cp.id}`}
+        position={[cp.latitude, cp.longitude]}
+        icon={makeCheckpointIcon(cp.order, isCurrent, isPassed)}
+      >
+        <Tooltip permanent direction="top" offset={[0, -18]} className="map-checkpoint-label">
+          {isCurrent ? '→ Чекпоїнт' : `#${cp.order}`}
+        </Tooltip>
+      </Marker>
+    );
+  });
+}
 
 const INITIAL_ZOOM = 14;
 // Below this zoom level, dots are packed close together and a nickname
@@ -299,14 +333,53 @@ function ProfileMiniCard({ person, onClose, onViewProfile }) {
 // route from `position` to it, and highlights nearbyUsers whose id is in
 // acceptedIds.
 //
+// `checkpoints` (optional): { items, currentId, passedIds, userPosition }
+// For cross activities — shows all checkpoints as numbered markers on the
+// map, highlights the current one, and draws a route from the user to it.
+//
 // `onViewProfile` (optional): called with a person object when someone taps
 // "Перейти в профіль" on the mini profile card opened from a cluster popup.
 // Left to the caller since navigation (route, modal, etc.) is app-specific.
-const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, className, onViewProfile }, ref) {
+const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, checkpoints, className, onViewProfile }, ref) {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
   const acceptedIds = gathering?.acceptedIds || [];
   const [profilePerson, setProfilePerson] = useState(null);
+
+  const cpItems = useMemo(() => checkpoints?.items || [], [checkpoints]);
+  const cpCurrentId = checkpoints?.currentId || null;
+  const cpPassedIds = useMemo(() => checkpoints?.passedIds || [], [checkpoints]);
+  const cpUserPosition = checkpoints?.userPosition || position;
+
+  // Road route from user to the current checkpoint via OSRM
+  const [routeCoords, setRouteCoords] = useState(null);
+  const routeKey = useMemo(() => {
+    if (!cpCurrentId || !cpUserPosition) return null;
+    const cp = cpItems.find((c) => c.id === cpCurrentId);
+    if (!cp) return null;
+    return `${cpUserPosition[0]},${cpUserPosition[1]}->${cp.latitude},${cp.longitude}`;
+  }, [cpCurrentId, cpUserPosition, cpItems]);
+
+  useEffect(() => {
+    if (!routeKey) { setRouteCoords(null); return; }
+    const [from, to] = routeKey.split('->');
+    const [lat1, lng1] = from.split(',').map(Number);
+    const [lat2, lng2] = to.split(',').map(Number);
+    const url = `https://router.project-osrm.org/route/v1/foot/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&overview=full`;
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.code === 'Ok' && data.routes?.length) {
+          setRouteCoords(data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        } else {
+          setRouteCoords(null);
+        }
+      })
+      .catch(() => { if (!cancelled) setRouteCoords(null); });
+    return () => { cancelled = true; };
+  }, [routeKey]);
 
   return (
     <div className={styles.mapWrapper}>
@@ -324,13 +397,34 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
         <ZoomWatcher onZoomChange={setZoom} />
         <Marker position={position} icon={ownIcon} />
 
-      {gathering && (
+      {gathering && cpItems.length === 0 && (
         <Marker position={gathering.point} icon={gatheringIcon}>
           <Tooltip permanent direction="top" offset={[0, -16]} className="map-gathering-label">
             {gathering.title || 'Збір'}
           </Tooltip>
         </Marker>
       )}
+
+        {cpItems.length > 0 && (
+          <CheckpointLayer
+            checkpoints={cpItems}
+            currentCheckpointId={cpCurrentId}
+            passedCheckpointIds={cpPassedIds}
+          />
+        )}
+
+        {routeCoords && (
+          <Polyline
+            positions={routeCoords}
+            pathOptions={{
+              color: '#0b0b0c',
+              weight: 4,
+              opacity: 0.8,
+              lineCap: 'round',
+              dashArray: '1, 10',
+            }}
+          />
+        )}
 
         <ClusterLayer
           people={nearbyUsers}

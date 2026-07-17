@@ -136,6 +136,25 @@
   min-height: 44px !important;
 }
 
+.noTimeLimitToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+  margin-bottom: 10px;
+  user-select: none;
+}
+
+.noTimeLimitToggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent, #c6ff3d);
+  cursor: pointer;
+  min-height: unset;
+}
+
 .participantsList {
   display: flex;
   flex-wrap: wrap;

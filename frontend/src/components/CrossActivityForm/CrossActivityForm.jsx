@@ -36,6 +36,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
   const [durationMinutes, setDurationMinutes] = useState(10);
+  const [noTimeLimit, setNoTimeLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState(null);
   const [clientErrors, setClientErrors] = useState({});
@@ -144,7 +145,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
     if (selectedParticipants.length < 1) errs.participants = 'Обери хоча б одного учасника.';
     if (selectedParticipants.length > 8) errs.participants = 'Максимум 8 учасників.';
     if (checkpoints.length < 2) errs.checkpoints = 'Потрібно мінімум 2 чекпоїнти (натисни на карту).';
-    if (durationMinutes < 1) errs.duration = 'Мінімальна тривалість — 1 хвилина.';
+    if (!noTimeLimit && durationMinutes < 1) errs.duration = 'Мінімальна тривалість — 1 хвилина.';
     setClientErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -164,7 +165,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
         started_at: new Date().toISOString(),
         participant_ids: selectedParticipants,
         geofence_radius_m: 50,
-        duration_seconds: durationMinutes * 60,
+        ...(noTimeLimit ? {} : { duration_seconds: durationMinutes * 60 }),
         checkpoints_data: checkpoints.map((cp, i) => ({
           latitude: cp.latitude,
           longitude: cp.longitude,
@@ -219,26 +220,38 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
 
       <div className={styles.field}>
         <label>Тривалість (хв)</label>
-        <div className={styles.durationRow}>
-          {[5, 10, 15, 20, 30, 60].map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`${styles.durationPill} ${durationMinutes === m ? styles.durationPillActive : ''}`}
-              onClick={() => setDurationMinutes(m)}
-            >
-              {m >= 60 ? `${m / 60}год` : `${m}хв`}
-            </button>
-          ))}
-        </div>
-        <input
-          type="number"
-          min={1}
-          max={1440}
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          className={styles.durationInput}
-        />
+        <label className={styles.noTimeLimitToggle}>
+          <input
+            type="checkbox"
+            checked={noTimeLimit}
+            onChange={(e) => setNoTimeLimit(e.target.checked)}
+          />
+          Без обмеження часу
+        </label>
+        {!noTimeLimit && (
+          <>
+            <div className={styles.durationRow}>
+              {[5, 10, 15, 20, 30, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`${styles.durationPill} ${durationMinutes === m ? styles.durationPillActive : ''}`}
+                  onClick={() => setDurationMinutes(m)}
+                >
+                  {m >= 60 ? `${m / 60}год` : `${m}хв`}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              min={1}
+              max={1440}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className={styles.durationInput}
+            />
+          </>
+        )}
         {clientErrors.duration && (
           <div className={styles.fieldError}><ErrorIcon />{clientErrors.duration}</div>
         )}

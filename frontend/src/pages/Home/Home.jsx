@@ -426,6 +426,26 @@ export default function Home() {
     };
   }, [ongoingActivity]);
 
+  const checkpointsMapData = useMemo(() => {
+    if (!ongoingActivity || ongoingActivity.category !== 'cross') return null;
+    const cps = ongoingActivity.checkpoints || [];
+    if (cps.length === 0) return null;
+
+    // Find passed checkpoint IDs (from the creator's or first participant's perspective)
+    const me = (ongoingActivity.participants || []).find((p) => p.id === user?.id);
+    const myPassed = me?.passed_checkpoints || [];
+
+    // Current = first checkpoint not yet passed
+    const current = cps.find((cp) => !myPassed.includes(cp.id)) || null;
+
+    return {
+      items: cps,
+      currentId: current?.id || null,
+      passedIds: myPassed,
+      userPosition: position,
+    };
+  }, [ongoingActivity, user?.id, position]);
+
   const handleLeaveActivity = async () => {
     if (!ongoingActivity?.id || leaving) return;
     setLeaving(true);
@@ -629,6 +649,7 @@ export default function Home() {
             nearbyUsers={nearbyUsersFiltered}
             activities={nearbyActivities}
             gathering={gatheringMapData}
+            checkpoints={checkpointsMapData}
             onViewProfile={handleViewProfile}
           />
         )}
@@ -674,16 +695,21 @@ export default function Home() {
                 >
                   ←
                 </button>
-                <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
+                <div className={styles.heroTitleBlock}>
+                  <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
+                </div>
                 <span className={styles.sheetBackSpacer} aria-hidden="true" />
               </>
             ) : ongoingActivity ? (
               <>
-                <div
-                  className={styles.sheetBackBtn}
-                  aria-label={`Учасників у зборі: ${ongoingParticipantsCount}`}
-                >
-                  {ongoingParticipantsCount}
+                <div className={styles.heroRowParticipants}>
+                  <div
+                    className={styles.heroParticipantsCircle}
+                    aria-label={`Учасників у зборі: ${ongoingParticipantsCount}`}
+                  >
+                    {ongoingParticipantsCount}
+                  </div>
+                  <span className={styles.heroRowParticipantsLabel}>учасник</span>
                 </div>
                 <div className={styles.heroTitleBlock}>
                   <h1 className={styles.heroTitle}>{ongoingActivity.title || 'Збір'}</h1>
@@ -691,23 +717,31 @@ export default function Home() {
                     <p className={styles.heroDistance}>{ongoingDistanceLabel}</p>
                   )}
                 </div>
-                <div className={styles.heroBadge}>
-                  <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
-                    {formatClock(ongoingElapsed)}
+                <div className={styles.heroBadgeBlock}>
+                  <div className={styles.heroBadge}>
+                    <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
+                      {ongoingActivity.category === 'cross' && ongoingActivity.duration_seconds
+                        ? formatClock(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))
+                        : formatClock(ongoingElapsed)}
+                    </span>
+                  </div>
+                  <span className={styles.heroBadgeLabel}>
+                    {ongoingActivity.category === 'cross' && ongoingActivity.duration_seconds ? 'залишилось' : 'триває'}
                   </span>
-                  <span className={styles.heroBadgeLabel}>триває</span>
                 </div>
               </>
             ) : (
               <>
-                <div>
+                <div className={styles.heroTitleBlockLeft}>
                   <p className={styles.kicker}>Твоя зона активності</p>
                   <h1 className={styles.heroTitle}>Люди поруч</h1>
                 </div>
-                <div className={styles.heroBadge}>
-                  <span key={nearbyCount} className={styles.heroBadgeValue}>
-                    {nearbyCount}
-                  </span>
+                <div className={styles.heroBadgeBlock}>
+                  <div className={styles.heroBadge}>
+                    <span key={nearbyCount} className={styles.heroBadgeValue}>
+                      {nearbyCount}
+                    </span>
+                  </div>
                   <span className={styles.heroBadgeLabel}>поруч</span>
                 </div>
               </>
@@ -738,9 +772,10 @@ export default function Home() {
             {ongoingActivity.category === 'cross' ? (
               <>
                 <p className={styles.heroText}>
-                  Крос триває вже {formatDurationLong(ongoingElapsed)}.
-                  {ongoingActivity.duration_seconds && (
-                    <> Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  {ongoingActivity.duration_seconds ? (
+                    <>Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  ) : (
+                    <>Крос триває вже {formatDurationLong(ongoingElapsed)}.</>
                   )}
                 </p>
 
