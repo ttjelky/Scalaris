@@ -5,7 +5,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 // Один спільний бекенд-хост для /api і /media — раніше вони були прописані
 // окремо і розійшлися на дві різні IP-адреси, через що аватарки/медіа
 // тихо йшли в нікуди, поки API-запити працювали нормально.
-const BACKEND_TARGET = 'http://192.168.0.106:8000'
+const BACKEND_TARGET = 'http://127.0.0.1:8000'
 
 export default defineConfig({
   plugins: [react(), basicSsl()],
@@ -17,6 +17,7 @@ export default defineConfig({
         target: BACKEND_TARGET,
         changeOrigin: true,
         secure: false,
+        ws: true,
       },
       '/media': {
         target: BACKEND_TARGET,

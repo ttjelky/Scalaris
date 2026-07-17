@@ -94,6 +94,13 @@ class Activity(models.Model):
             self.completed_at = timezone.now()
             self.save(update_fields=['live_status', 'completed_at'])
 
+            # Real-time WebSocket: notify all participants that activity is cancelled
+            try:
+                from api.consumers import notify_activity_cancelled
+                notify_activity_cancelled(self.pk)
+            except Exception:
+                pass
+
     def maybe_complete(self):
         """
         Завершити, коли всі 'accepted'-запрошені прийшли ('arrived').
@@ -179,7 +186,22 @@ class Invitation(models.Model):
         self.arrived_at = timezone.now()
         self.save(update_fields=['status', 'arrived_at'])
         self.activity.maybe_complete()
+        self._notify_participants()
 
     def leave(self):
         self.status = self.Status.LEFT
         self.save(update_fields=['status'])
+        self._notify_participants()
+
+    def _notify_participants(self):
+        """Broadcast participant status change to all WebSocket subscribers."""
+        try:
+            from api.consumers import notify_activity_participants
+            participant = {
+                'id': self.to_user.id,
+                'username': self.to_user.username,
+                'status': self.status,
+            }
+            notify_activity_participants(self.activity_id, participant, self.activity.live_status)
+        except Exception:
+            pass

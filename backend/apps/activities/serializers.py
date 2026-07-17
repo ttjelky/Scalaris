@@ -181,6 +181,17 @@ class ActivitySerializer(serializers.ModelSerializer):
             for user in participants
         ])
 
+        # Real-time WebSocket: notify each invited participant
+        try:
+            from api.consumers import notify_user
+            from apps.users.models import FriendRequest
+            for user in participants:
+                fr_count = FriendRequest.objects.filter(to_user=user).count()
+                inv_count = Invitation.objects.filter(to_user=user, status=Invitation.Status.PENDING).count()
+                notify_user(user.pk, fr_count + inv_count)
+        except Exception:
+            pass
+
         return activity
 
     def update(self, instance, validated_data):
@@ -275,4 +286,27 @@ class InvitationRespondSerializer(serializers.ModelSerializer):
             instance.accept()  # Внутрішній метод активує сесію та оновить responded_at
         elif status == Invitation.Status.DECLINED:
             instance.decline()  # Оновить responded_at
+
+        # Real-time WebSocket: notify activity participants about status change
+        try:
+            from api.consumers import notify_activity_participants, notify_user
+            from apps.users.models import FriendRequest
+
+            participant = {
+                'id': instance.to_user.id,
+                'username': instance.to_user.username,
+                'status': instance.status,
+            }
+            notify_activity_participants(instance.activity_id, participant, instance.activity.live_status)
+
+            # Also update notification count for the activity creator
+            fr_count = FriendRequest.objects.filter(to_user=instance.activity.creator).count()
+            inv_count = Invitation.objects.filter(
+                to_user=instance.activity.creator,
+                status=Invitation.Status.PENDING,
+            ).count()
+            notify_user(instance.activity.creator_id, fr_count + inv_count)
+        except Exception:
+            pass
+
         return instance

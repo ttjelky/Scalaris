@@ -1,22 +1,231 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
-class YardConsumer(AsyncWebsocketConsumer):
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    """WebSocket for real-time notification count updates.
+
+    Connects with: ws/notifications/?token=<access_token>
+    Joins user-specific group: notifications_<user_id>
+    Server sends: { "type": "notification_count", "count": <int> }
+    """
+
     async def connect(self):
-        self.yard_id = self.scope['url_route']['kwargs']['yard_id']
-        self.group_name = f'yard_{self.yard_id}'
+        self.user = None
+        token = self.scope['query_string'].decode().split('token=')[-1].split('&')[0] if b'token=' in self.scope['query_string'] else ''
+
+        if not token:
+            await self.close(code=4001)
+            return
+
+        try:
+            access_token = AccessToken(token)
+            self.user_id = access_token['user_id']
+            self.user = await self.get_user(self.user_id)
+        except (InvalidToken, TokenError, KeyError):
+            await self.close(code=4001)
+            return
+
+        if not self.user:
+            await self.close(code=4001)
+            return
+
+        self.group_name = f'notifications_{self.user_id}'
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        # Send initial count
+        count = await self.get_notification_count()
+        await self.send(text_data=json.dumps({
+            'type': 'notification_count',
+            'count': count,
+        }))
+
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
         data = json.loads(text_data)
-        await self.channel_layer.group_send(self.group_name, {
-            'type': 'yard_event',
-            'data': data,
-        })
+        msg_type = data.get('type')
 
-    async def yard_event(self, event):
-        await self.send(text_data=json.dumps(event['data']))
+        if msg_type == 'get_count':
+            count = await self.get_notification_count()
+            await self.send(text_data=json.dumps({
+                'type': 'notification_count',
+                'count': count,
+            }))
+
+    async def notification_update(self, event):
+        """Handler for group_send from views when a new notification is created."""
+        await self.send(text_data=json.dumps({
+            'type': 'notification_count',
+            'count': event['count'],
+        }))
+
+    @database_sync_to_async
+    def get_user(self, user_id):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def get_notification_count(self):
+        from apps.users.models import FriendRequest
+        from apps.activities.models import Invitation
+
+        friend_request_count = FriendRequest.objects.filter(to_user=self.user).count()
+        invitation_count = Invitation.objects.filter(
+            to_user=self.user,
+            status=Invitation.Status.PENDING,
+        ).count()
+        return friend_request_count + invitation_count
+
+
+class ActivityConsumer(AsyncWebsocketConsumer):
+    """WebSocket for real-time activity participant status updates.
+
+    Connects with: ws/activity/<activity_id>/?token=<access_token>
+    Joins activity group: activity_<activity_id>
+    Server sends: { "type": "participant_update", "participant": {...}, "activity_status": "..." }
+    """
+
+    async def connect(self):
+        self.activity_id = self.scope['url_route']['kwargs']['activity_id']
+        token = self.scope['query_string'].decode().split('token=')[-1].split('&')[0] if b'token=' in self.scope['query_string'] else ''
+
+        if not token:
+            await self.close(code=4001)
+            return
+
+        try:
+            access_token = AccessToken(token)
+            self.user_id = access_token['user_id']
+        except (InvalidToken, TokenError, KeyError):
+            await self.close(code=4001)
+            return
+
+        self.group_name = f'activity_{self.activity_id}'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+        # Send current state
+        state = await self.get_activity_state()
+        if state:
+            await self.send(text_data=json.dumps({
+                'type': 'activity_state',
+                **state,
+            }))
+        else:
+            await self.send(text_data=json.dumps({
+                'type': 'activity_state',
+                'live_status': 'unknown',
+                'participants': [],
+            }))
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        msg_type = data.get('type')
+
+        if msg_type == 'get_state':
+            state = await self.get_activity_state()
+            if state:
+                await self.send(text_data=json.dumps({
+                    'type': 'activity_state',
+                    **state,
+                }))
+
+    async def participant_update(self, event):
+        """Handler for group_send from views when participant status changes."""
+        await self.send(text_data=json.dumps({
+            'type': 'participant_update',
+            'participant': event['participant'],
+            'activity_status': event['activity_status'],
+        }))
+
+    async def activity_cancelled(self, event):
+        """Handler when the activity creator cancels the activity."""
+        await self.send(text_data=json.dumps({
+            'type': 'activity_cancelled',
+        }))
+
+    @database_sync_to_async
+    def get_activity_state(self):
+        from apps.activities.models import Activity, Invitation
+
+        try:
+            activity = Activity.objects.get(pk=self.activity_id)
+        except Activity.DoesNotExist:
+            return None
+
+        invitations = activity.invitations.select_related('to_user').all()
+        participants = []
+        for inv in invitations:
+            participants.append({
+                'id': inv.to_user.id,
+                'username': inv.to_user.username,
+                'status': inv.status,
+            })
+
+        return {
+            'live_status': activity.live_status,
+            'participants': participants,
+        }
+
+
+def notify_user(user_id, count):
+    """Synchronous helper to send notification update to a user's WebSocket group.
+
+    Call this from views after creating/deleting friend requests or invitations.
+    """
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'notifications_{user_id}',
+        {
+            'type': 'notification_update',
+            'count': count,
+        }
+    )
+
+
+def notify_activity_participants(activity_id, participant, activity_status):
+    """Synchronous helper to broadcast participant status change to activity group."""
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'activity_{activity_id}',
+        {
+            'type': 'participant_update',
+            'participant': participant,
+            'activity_status': activity_status,
+        }
+    )
+
+
+def notify_activity_cancelled(activity_id):
+    """Synchronous helper to notify all participants that activity was cancelled."""
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f'activity_{activity_id}',
+        {
+            'type': 'activity_cancelled',
+        }
+    )
