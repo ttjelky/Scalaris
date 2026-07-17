@@ -8,6 +8,7 @@ from django.utils import timezone
 class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     bio = models.CharField(max_length=280, blank=True)
+    phone = models.CharField(max_length=32, blank=True, default='')
     is_visible_on_map = models.BooleanField(default=True)
 
     # OAuth-прив'язки до соцмереж. id зберігаємо як CharField (не int) —

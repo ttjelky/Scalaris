@@ -27,7 +27,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'avatar', 'bio', 'is_visible_on_map',
+            'id', 'username', 'email', 'avatar', 'bio', 'phone', 'is_visible_on_map',
             'discord_username', 'telegram_username',
         ]
         read_only_fields = ['id', 'discord_username', 'telegram_username']
@@ -39,7 +39,7 @@ class UserPublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio', 'is_blocked']
+        fields = ['id', 'username', 'avatar', 'bio', 'phone', 'is_blocked']
 
     def get_is_blocked(self, obj):
         request = self.context.get('request')
