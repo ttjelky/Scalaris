@@ -198,7 +198,11 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
                 onClick={() => toggleParticipant(u.id)}
                 aria-pressed={active}
               >
-                <span className={styles.participantAvatar}>{u.username?.slice(0, 1).toUpperCase()}</span>
+                {u.avatar ? (
+                  <img src={u.avatar} alt="" className={styles.participantAvatarImg} />
+                ) : (
+                  <span className={styles.participantAvatar}>{u.username?.slice(0, 1).toUpperCase()}</span>
+                )}
                 {u.username}
               </button>
             );
