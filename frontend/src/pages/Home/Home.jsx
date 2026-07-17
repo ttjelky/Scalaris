@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -89,6 +89,7 @@ const ACTIVITIES = [
 
 export default function Home() {
   const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
   const mapRef = useRef(null);
   const [position, setPosition] = useState(null);
   const [nearbyUsers, setNearbyUsers] = useState([]);
@@ -206,6 +207,12 @@ export default function Home() {
 
   const handleCancelCreate = () => {
     setActiveActivityId(null);
+  };
+
+  // Same destination as the user cards in the bottom-sheet list — used by
+  // MapView's mini profile card when tapping a user marker on the map.
+  const handleViewProfile = (person) => {
+    navigate(`/profile/${person.id}`);
   };
   // ------------------------------------------------------------------------
 
@@ -514,6 +521,7 @@ export default function Home() {
             nearbyUsers={nearbyUsers}
             activities={nearbyActivities}
             gathering={gatheringMapData}
+            onViewProfile={handleViewProfile}
           />
         )}
       </div>

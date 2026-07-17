@@ -92,21 +92,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 1px solid var(--color-line, #e5e5e5);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--color-ink, #0b0b0c);
   flex-shrink: 0;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
     opacity 0.2s var(--ease-track, ease);
 }
 
 .visibilityButton[aria-pressed='true'],
 .visibilityButton[aria-pressed='false'] {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   border-color: var(--color-line, #e5e5e5);
   color: var(--color-ink, #0b0b0c);
 }
