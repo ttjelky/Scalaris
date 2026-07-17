@@ -363,8 +363,55 @@
   }
 }
 
+/* Checkpoint marker — numbered circle on the map during a cross activity. */
+.checkpointMarker {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-surface, #f7f7f5);
+  border: 2.5px solid var(--color-line, #cfcfcf);
+  color: var(--color-ink-soft, #6b6b70);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.78rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Current checkpoint — accent-colored, pulsing, visually prominent. */
+.checkpointMarkerCurrent {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-ink, #0b0b0c);
+  color: var(--color-ink, #0b0b0c);
+  box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  animation: checkpointPulse 2s ease-out infinite;
+}
+
+/* Passed checkpoint — dimmed, no pulse. */
+.checkpointMarkerPassed {
+  background: rgba(198, 255, 61, 0.25);
+  border-color: rgba(198, 255, 61, 0.5);
+  color: var(--color-ink, #0b0b0c);
+}
+
+@keyframes checkpointPulse {
+  0% {
+    box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  }
+  50% {
+    box-shadow: 0 2px 20px rgba(198, 255, 61, 0.7);
+  }
+  100% {
+    box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .gatheringMarker::after {
+  .gatheringMarker::after,
+  .checkpointMarkerCurrent {
     animation: none;
   }
 
@@ -494,4 +541,23 @@
   background: rgba(198, 255, 61, 0.12);
   padding: 2px 8px;
   border-radius: 999px;
+/* Checkpoint tooltip — same pill treatment as gathering label. */
+:global(.map-checkpoint-label) {
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #ffffff);
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  padding: 3px 9px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+:global(.map-checkpoint-label)::before {
+  display: none;
 }

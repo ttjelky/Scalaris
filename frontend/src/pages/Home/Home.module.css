@@ -173,6 +173,24 @@
   transform: scale(0.92);
 }
 
+.filterBadge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px);
+  transform: translateX(-50%);
+  z-index: 601;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .greetingBlock {
   display: inline-flex;
   align-items: center;
@@ -375,12 +393,36 @@
 }
 
 .sheetCollapsed .heroTitle {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .sheetCollapsed .heroBadge {
   min-width: 48px;
   height: 48px;
+}
+
+.sheetCollapsed .sheetBackBtn {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+}
+
+.sheetCollapsed .heroBadgeBlock {
+  gap: 2px;
+}
+
+.sheetCollapsed .heroRowParticipants {
+  gap: 2px;
+}
+
+.sheetCollapsed .heroRowParticipantsLabel {
+  font-size: 0.45rem;
+}
+
+.sheetCollapsed .heroParticipantsCircle {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
 }
 
 .sheetCollapsed .heroBadgeValue {
@@ -392,7 +434,7 @@
 }
 
 .sheetCollapsed .heroBadgeLabel {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
 }
 
 /* Peek state should only ever show the handle + hero row. The participants
@@ -401,6 +443,7 @@
    out from under the clipped max-height as a sliver of text. */
 .sheetCollapsed .ongoingParticipantsTitle,
 .sheetCollapsed .ongoingParticipantsList,
+.sheetCollapsed .checkpointProgress,
 .sheetCollapsed .leaveBtn {
   display: none;
 }
@@ -439,6 +482,23 @@
   gap: 16px;
 }
 
+.heroRowParticipants {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.heroRowParticipantsLabel {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-soft, #6b6b70);
+  line-height: 1;
+}
+
 .kicker {
   margin: 0 0 4px;
   font-size: 0.7rem;
@@ -454,17 +514,37 @@
   font-weight: 800;
   font-stretch: condensed;
   text-transform: uppercase;
-  font-size: clamp(24px, 7vw, 32px);
+  font-size: clamp(28px, 8vw, 36px);
   line-height: 1;
   letter-spacing: -0.01em;
   color: var(--color-ink, #0b0b0c);
+  text-align: center;
 }
 
 .heroTitleBlock {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 2px;
   min-width: 0;
+  flex: 1;
+}
+
+.heroTitleBlockLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.heroTitleBlockLeft .heroTitle {
+  text-align: left;
+}
+
+.heroTitleBlockLeft .kicker {
+  text-align: left;
 }
 
 .heroDistance {
@@ -472,6 +552,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--color-ink-soft, #6b6b70);
+  text-align: center;
 }
 
 .sheetCollapsed .heroDistance {
@@ -480,7 +561,6 @@
 
 .heroBadge {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-width: 64px;
@@ -491,12 +571,20 @@
   flex-shrink: 0;
 }
 
+.heroBadgeBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
 .heroBadgeLabel {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-top: 2px;
+  color: var(--color-ink-soft, #6b6b70);
+  line-height: 1;
 }
 
 .heroText {
@@ -695,6 +783,22 @@
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.heroParticipantsCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
   flex-shrink: 0;
 }
 

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import api from '../../api/axios';
+import { getFriends } from '../../api/friends';
 import styles from './CrossActivityForm.module.css';
 
 function ErrorIcon() {
@@ -27,9 +28,30 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
   const [durationMinutes, setDurationMinutes] = useState(10);
+  const [noTimeLimit, setNoTimeLimit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState(null);
   const [clientErrors, setClientErrors] = useState({});
+  const [friends, setFriends] = useState([]);
+  const [participantFilter, setParticipantFilter] = useState('all');
+
+  useEffect(() => {
+    let cancelled = false;
+    getFriends()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setFriends(Array.isArray(data) ? data : data.results || []);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const friendIdSet = useMemo(() => new Set(friends.map((f) => f.id)), [friends]);
+
+  const displayedUsers = participantFilter === 'friends'
+    ? nearbyUsers.filter((u) => friendIdSet.has(u.id))
+    : nearbyUsers;
 
   const placeCheckpointMarker = useCallback((cp, index) => {
     if (!mapRef.current) return null;
@@ -135,7 +157,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
     if (selectedParticipants.length < 1) errs.participants = 'Обери хоча б одного учасника.';
     if (selectedParticipants.length > 8) errs.participants = 'Максимум 8 учасників.';
     if (checkpoints.length < 2) errs.checkpoints = 'Потрібно мінімум 2 чекпоїнти (натисни на карту).';
-    if (durationMinutes < 1) errs.duration = 'Мінімальна тривалість — 1 хвилина.';
+    if (!noTimeLimit && durationMinutes < 1) errs.duration = 'Мінімальна тривалість — 1 хвилина.';
     setClientErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -155,7 +177,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
         started_at: new Date().toISOString(),
         participant_ids: selectedParticipants,
         geofence_radius_m: 50,
-        duration_seconds: durationMinutes * 60,
+        ...(noTimeLimit ? {} : { duration_seconds: durationMinutes * 60 }),
         checkpoints_data: checkpoints.map((cp, i) => ({
           latitude: cp.latitude,
           longitude: cp.longitude,
@@ -210,26 +232,38 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
 
       <div className={styles.field}>
         <label>Тривалість (хв)</label>
-        <div className={styles.durationRow}>
-          {[5, 10, 15, 20, 30, 60].map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`${styles.durationPill} ${durationMinutes === m ? styles.durationPillActive : ''}`}
-              onClick={() => setDurationMinutes(m)}
-            >
-              {m >= 60 ? `${m / 60}год` : `${m}хв`}
-            </button>
-          ))}
-        </div>
-        <input
-          type="number"
-          min={1}
-          max={1440}
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          className={styles.durationInput}
-        />
+        <label className={styles.noTimeLimitToggle}>
+          <input
+            type="checkbox"
+            checked={noTimeLimit}
+            onChange={(e) => setNoTimeLimit(e.target.checked)}
+          />
+          Без обмеження часу
+        </label>
+        {!noTimeLimit && (
+          <>
+            <div className={styles.durationRow}>
+              {[5, 10, 15, 20, 30, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`${styles.durationPill} ${durationMinutes === m ? styles.durationPillActive : ''}`}
+                  onClick={() => setDurationMinutes(m)}
+                >
+                  {m >= 60 ? `${m / 60}год` : `${m}хв`}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              min={1}
+              max={1440}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className={styles.durationInput}
+            />
+          </>
+        )}
         {clientErrors.duration && (
           <div className={styles.fieldError}><ErrorIcon />{clientErrors.duration}</div>
         )}
@@ -237,9 +271,31 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
 
       <div className={styles.field}>
         <label>Учасники (1–8)</label>
+        <div className={styles.filterToggle}>
+          <button
+            type="button"
+            className={`${styles.filterBtn} ${participantFilter === 'all' ? styles.filterBtnActive : ''}`}
+            onClick={() => setParticipantFilter('all')}
+          >
+            Усі
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterBtn} ${participantFilter === 'friends' ? styles.filterBtnActive : ''}`}
+            onClick={() => setParticipantFilter('friends')}
+          >
+            Друзі
+          </button>
+        </div>
         <div className={styles.participantsList}>
-          {nearbyUsers.length === 0 && <div className={styles.empty}>Немає доступних користувачів поруч</div>}
-          {nearbyUsers.map((u) => {
+          {displayedUsers.length === 0 && (
+            <div className={styles.empty}>
+              {participantFilter === 'friends'
+                ? 'Немає друзів поруч'
+                : 'Немає доступних користувачів поруч'}
+            </div>
+          )}
+          {displayedUsers.map((u) => {
             const active = selectedParticipants.includes(u.id);
             return (
               <button
@@ -249,7 +305,11 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
                 onClick={() => toggleParticipant(u.id)}
                 aria-pressed={active}
               >
-                <span className={styles.participantAvatar}>{u.username?.slice(0, 1).toUpperCase()}</span>
+                {u.avatar ? (
+                  <img src={u.avatar} alt="" className={styles.participantAvatarImg} />
+                ) : (
+                  <span className={styles.participantAvatar}>{u.username?.slice(0, 1).toUpperCase()}</span>
+                )}
                 {u.username}
               </button>
             );
