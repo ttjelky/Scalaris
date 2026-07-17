@@ -34,6 +34,7 @@ const PUBLIC_AUTH_PATHS = [
   '/users/register',
   '/users/login/refresh',
   '/users/password-reset',
+  '/users/auth/discord',
 ];
 
 function isPublicAuthCall(url) {

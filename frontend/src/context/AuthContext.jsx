@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api, { clearAccessToken, onAuthFailure, setAccessToken } from '../api/axios';
+import { getDiscordRedirectUri } from '../utils/discordAuth';
 
 const AuthContext = createContext(null);
 
@@ -16,7 +17,7 @@ export function AuthProvider({ children }) {
   const authBootstrapPromiseRef = useRef(null);
   const hasRunBootstrap = useRef(false);
 
-  const loadMe = async () => {
+  const loadMe = useCallback(async () => {
     try {
       const { data } = await api.get('/users/me/');
       setUser(data);
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     onAuthFailure(() => {
@@ -43,31 +44,52 @@ export function AuthProvider({ children }) {
         authBootstrapPromiseRef.current = loadMe();
       }
     }
-  }, []);
+  }, [loadMe]);
 
-  const login = async (login, password) => {
-    // Навмисно НЕ чіпаємо тут `loading` — форма сама показує свій pending-стан.
-    const { data } = await api.post('/users/login/', { username: login, password });
-    setAccessToken(data.access);
-    setAuthFailed(false);
-    // Успішний логін: підтягуємо профіль. loadMe() сам виставить/скине
-    // `loading`, але оскільки на цей момент бутстрап вже давно завершено
-    // (loading === false), це не викличе жодного повноекранного флешу —
-    // просто оновиться `user` і форма зробить navigate().
-    await loadMe();
-  };
+  const login = useCallback(
+    async (loginValue, password) => {
+      // Навмисно НЕ чіпаємо тут `loading` — форма сама показує свій pending-стан.
+      const { data } = await api.post('/users/login/', { username: loginValue, password });
+      setAccessToken(data.access);
+      setAuthFailed(false);
+      // Успішний логін: підтягуємо профіль. loadMe() сам виставить/скине
+      // `loading`, але оскільки на цей момент бутстрап вже давно завершено
+      // (loading === false), це не викличе жодного повноекранного флешу —
+      // просто оновиться `user` і форма зробить navigate().
+      await loadMe();
+    },
+    [loadMe]
+  );
 
-  const register = async ({ username, email, password, passwordConfirm }) => {
-    await api.post('/users/register/', {
-      username,
-      email,
-      password,
-      password_confirm: passwordConfirm,
-    });
-    await login(username, password);
-  };
+  // Той самий контракт відповіді, що й /users/login/ (access-токен у тілі +
+  // refresh у httpOnly-кукі), тож решта логіки — та сама, що й у login().
+  const loginWithDiscord = useCallback(
+    async (code) => {
+      const { data } = await api.post('/users/auth/discord/', {
+        code,
+        redirect_uri: getDiscordRedirectUri(),
+      });
+      setAccessToken(data.access);
+      setAuthFailed(false);
+      await loadMe();
+    },
+    [loadMe]
+  );
 
-  const logout = async () => {
+  const register = useCallback(
+    async ({ username, email, password, passwordConfirm }) => {
+      await api.post('/users/register/', {
+        username,
+        email,
+        password,
+        password_confirm: passwordConfirm,
+      });
+      await login(username, password);
+    },
+    [login]
+  );
+
+  const logout = useCallback(async () => {
     try {
       await api.post('/users/logout/');
     } catch {
@@ -78,22 +100,23 @@ export function AuthProvider({ children }) {
     setUser(null);
     setAuthFailed(false);
     setLoading(false);
-  };
+  }, []);
 
   // Merge partial fields into the current user (e.g. after a PATCH /users/me/)
   // so the rest of the app sees the update immediately, without a refetch.
-  const updateUser = (updates) => {
+  const updateUser = useCallback((updates) => {
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
-  };
+  }, []);
 
   const value = useMemo(
-    () => ({ user, loading, authFailed, isAuthenticated: !!user, login, register, logout, updateUser }),
-    [user, loading, authFailed]
+    () => ({ user, loading, authFailed, isAuthenticated: !!user, login, loginWithDiscord, register, logout, updateUser }),
+    [user, loading, authFailed, login, loginWithDiscord, register, logout, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within an AuthProvider');

@@ -128,7 +128,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [(config('REDIS_HOST', default='127.0.0.1'), config('REDIS_PORT', default=6379, cast=int))],
+            "hosts": [('127.0.0.1', 6379)],
         },
     },
 }
@@ -172,13 +172,11 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+FRONTEND_URL = config('FRONTEND_URL', default='https://localhost:5174')
 
-# --- OAuth: Discord ---
 DISCORD_CLIENT_ID = config('DISCORD_CLIENT_ID', default='')
 DISCORD_CLIENT_SECRET = config('DISCORD_CLIENT_SECRET', default='')
-DISCORD_REDIRECT_URI = config('DISCORD_REDIRECT_URI', default=f'{FRONTEND_URL}/oauth/discord/callback')
-
+DISCORD_REDIRECT_URI = config('DISCORD_REDIRECT_URI', default='')
 
 STATIC_URL = 'static/'
 

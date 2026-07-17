@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar/Navbar';
+import { redirectToDiscordAuthorize, MissingDiscordClientIdError } from '../../utils/discordAuth';
 import styles from './Profile.module.css';
 
 export default function Profile() {
@@ -111,18 +112,16 @@ export default function Profile() {
   };
 
   const connectDiscord = () => {
-    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
-    if (!clientId) {
-      setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
-      return;
+    try {
+      // Профіль уже має email на нашому боці, тож для прив'язки достатньо 'identify'.
+      redirectToDiscordAuthorize({ scope: 'identify' });
+    } catch (err) {
+      if (err instanceof MissingDiscordClientIdError) {
+        setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
+      } else {
+        setSocialError('Не вдалося почати підключення Discord. Спробуй ще раз.');
+      }
     }
-    const redirectUri = `${window.location.origin}/oauth/discord/callback`;
-    const url = new URL('https://discord.com/api/oauth2/authorize');
-    url.searchParams.set('client_id', clientId);
-    url.searchParams.set('redirect_uri', redirectUri);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'identify');
-    window.location.href = url.toString();
   };
 
   const disconnectDiscord = async () => {

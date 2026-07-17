@@ -113,3 +113,56 @@
 .link:hover {
   border-bottom-color: var(--color-ink);
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  color: var(--color-ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-line);
+}
+
+.discordButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  padding: 15px 20px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-track), background 0.15s var(--ease-track), border-color 0.15s var(--ease-track);
+}
+
+.discordButton:hover:not(:disabled) {
+  background: #eef0ff;
+  border-color: #5865f2;
+}
+
+.discordButton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.discordButton:disabled {
+  background: var(--color-line);
+  color: var(--color-ink-soft);
+  cursor: not-allowed;
+}

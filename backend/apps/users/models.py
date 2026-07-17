@@ -6,11 +6,7 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     bio = models.CharField(max_length=280, blank=True)
     is_visible_on_map = models.BooleanField(default=True)
-
-    # OAuth-прив'язка до Discord. id зберігаємо як CharField (не int) —
-    # Discord віддає ID як велике число-рядок, це "чужий" зовнішній
-    # ідентифікатор, не наш internal PK.
-    discord_id = models.CharField(max_length=32, blank=True, null=True, unique=True)
+    discord_id = models.CharField(max_length=32, unique=True, blank=True, null=True)
     discord_username = models.CharField(max_length=64, blank=True)
 
     def __str__(self):
@@ -47,4 +43,3 @@ class Report(models.Model):
 
     def __str__(self):
         return f'{self.reporter} reported {self.reported} ({self.reason})'
-
