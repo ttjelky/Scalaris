@@ -144,7 +144,9 @@ export default function Notifications() {
                       <span className={styles.meta}>
                         {isFriendRequest
                           ? 'хоче додати вас у друзі'
-                          : `запрошує на «${n.activity?.title || 'активність'}»`
+                          : n.activity?.category === 'cross'
+                            ? 'вас запросили на Крос!!'
+                            : `запрошує на «${n.activity?.title || 'активність'}»`
                         }
                       </span>
                       <span className={styles.time}>{timeAgo(n.created_at)}</span>

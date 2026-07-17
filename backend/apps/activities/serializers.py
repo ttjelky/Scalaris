@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 from apps.users.serializers import UserPublicSerializer
-from .models import Location, Activity, Invitation
+from .models import Location, Activity, Invitation, Checkpoint, ParticipantCheckpoint
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -58,15 +58,45 @@ class ActivityParticipantSerializer(serializers.ModelSerializer):
     Один запрошений на активність, сплющено в {..user fields.., status} —
     зручно рендерити як список чіпів "ім'я + бейдж статусу" на фронті.
     """
+    passed_checkpoints = serializers.SerializerMethodField()
 
     class Meta:
         model = Invitation
-        fields = ['status']
+        fields = ['status', 'passed_checkpoints']
+
+    def get_passed_checkpoints(self, obj):
+        return list(
+            obj.passed_checkpoints.values_list('checkpoint_id', flat=True)
+        )
 
     def to_representation(self, instance):
         data = UserPublicSerializer(instance.to_user).data
         data['status'] = instance.status
+        data['passed_checkpoints'] = self.get_passed_checkpoints(instance)
         return data
+
+
+class CheckpointWriteSerializer(serializers.Serializer):
+    """Один чекпоїнт при створенні кросу."""
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    order = serializers.IntegerField(min_value=1)
+    radius_m = serializers.IntegerField(min_value=5, max_value=200, default=30)
+
+
+class CheckpointReadSerializer(serializers.ModelSerializer):
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Checkpoint
+        fields = ['id', 'order', 'latitude', 'longitude', 'radius_m']
+
+    def get_latitude(self, obj):
+        return obj.point.y
+
+    def get_longitude(self, obj):
+        return obj.point.x
 
 
 class ActivitySerializer(serializers.ModelSerializer):
@@ -86,10 +116,23 @@ class ActivitySerializer(serializers.ModelSerializer):
         allow_empty=False,
         help_text='Список id користувачів, яких запрошуємо. Мінімум 1, максимум 8.'
     )
+    checkpoints_data = CheckpointWriteSerializer(
+        many=True,
+        write_only=True,
+        required=False,
+        help_text='Список чекпоїнтів для кросу (category=cross).'
+    )
+    duration_seconds = serializers.IntegerField(
+        required=False,
+        min_value=30,
+        max_value=86400,
+        help_text='Тривалість кросу в секундах (30с – 24год).'
+    )
     # Всі запрошені (не лише ті, хто прийняв), кожен зі своїм статусом
     # інвайту — фронт показує це як бейджі "прийнято"/"очікування" тощо
     # і сам відфільтровує accepted/arrived для виділення на карті.
     participants = serializers.SerializerMethodField()
+    checkpoints = CheckpointReadSerializer(many=True, read_only=True)
 
     def get_participants(self, obj):
         invitations = obj.invitations.select_related('to_user').order_by('created_at')
@@ -101,11 +144,12 @@ class ActivitySerializer(serializers.ModelSerializer):
             'id', 'creator', 'title', 'description',
             'latitude', 'longitude', 'started_at', 'category', 'created_at',
             'live_status', 'geofence_radius_m', 'activated_at', 'completed_at',
-            'participant_ids', 'participants',
+            'participant_ids', 'participants', 'checkpoints',
+            'checkpoints_data', 'duration_seconds',
         ]
         read_only_fields = [
             'id', 'creator', 'created_at', 'started_at',
-            'live_status', 'activated_at', 'completed_at',
+            'live_status', 'activated_at', 'completed_at', 'checkpoints',
         ]
 
     def validate_latitude(self, value):
@@ -146,6 +190,25 @@ class ActivitySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Потрібно передати одночасно і latitude, і longitude або взагалі не передавати координати."
             )
+
+        # Для кросу обов'язкові чекпоїнти та тривалість
+        category = attrs.get('category')
+        checkpoints_data = attrs.get('checkpoints_data')
+        if category == Activity.Category.CROSS:
+            if not checkpoints_data or len(checkpoints_data) < 2:
+                raise serializers.ValidationError(
+                    {"checkpoints_data": "Для кросу потрібно мінімум 2 чекпоїнти."}
+                )
+            if not attrs.get('duration_seconds'):
+                raise serializers.ValidationError(
+                    {"duration_seconds": "Для кросу обов'язково вказати тривалість."}
+                )
+            orders = [cp['order'] for cp in checkpoints_data]
+            if sorted(orders) != list(range(1, len(orders) + 1)):
+                raise serializers.ValidationError(
+                    {"checkpoints_data": "Порядок чекпоїнтів має бути послідовним: 1, 2, 3 …"}
+                )
+
         return attrs
 
     def to_representation(self, instance):
@@ -159,6 +222,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         lat = validated_data.pop('latitude')
         lng = validated_data.pop('longitude')
         participants = validated_data.pop('participant_ids')
+        checkpoints_data = validated_data.pop('checkpoints_data', [])
 
         now = timezone.now()
         validated_data['point'] = Point(lng, lat, srid=4326)
@@ -180,6 +244,18 @@ class ActivitySerializer(serializers.ModelSerializer):
             )
             for user in participants
         ])
+
+        # Створюємо чекпоїнти для кросу
+        if activity.category == Activity.Category.CROSS and checkpoints_data:
+            Checkpoint.objects.bulk_create([
+                Checkpoint(
+                    activity=activity,
+                    order=cp['order'],
+                    point=Point(cp['longitude'], cp['latitude'], srid=4326),
+                    radius_m=cp.get('radius_m', 30),
+                )
+                for cp in checkpoints_data
+            ])
 
         return activity
 

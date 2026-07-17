@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.users.serializers import UserPublicSerializer
 from apps.users.models import Block
-from .models import Activity, Invitation, Location
+from .models import Activity, Invitation, Location, Checkpoint, ParticipantCheckpoint
 from .permissions import IsCreatorOrReadOnly, IsInvitationReceiver
 from .serializers import (
     ActivityListSerializer,
@@ -18,6 +18,7 @@ from .serializers import (
     InvitationRespondSerializer,
     InvitationSerializer,
     LocationSerializer,
+    CheckpointReadSerializer,
 )
 
 
@@ -141,6 +142,67 @@ class ActivityViewSet(viewsets.ModelViewSet):
         activity.cancel()
         serializer = self.get_serializer(activity)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass')
+    def pass_checkpoint(self, request, pk=None, checkpoint_id=None):
+        """Учасник позначає, що пройшов чекпоїнт."""
+        activity = self.get_object()
+        try:
+            checkpoint = activity.checkpoints.get(pk=checkpoint_id)
+        except Checkpoint.DoesNotExist:
+            return Response(
+                {'detail': 'Чекпоїнт не знайдено.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Знаходимо інвайт поточного користувача в цій активності
+        try:
+            invitation = activity.invitations.get(to_user=request.user)
+        except Invitation.DoesNotExist:
+            return Response(
+                {'detail': 'Ви не є учасником цієї активності.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Створюємо запис про проходження (або повертаємо існуючий)
+        participant_cp, created = ParticipantCheckpoint.objects.get_or_create(
+            invitation=invitation,
+            checkpoint=checkpoint,
+        )
+
+        return Response({
+            'checkpoint_id': checkpoint.id,
+            'order': checkpoint.order,
+            'passed': True,
+            'created': created,
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='checkpoints/progress')
+    def checkpoints_progress(self, request, pk=None):
+        """Повертає прогрес учасника по чекпоїнтах."""
+        activity = self.get_object()
+
+        try:
+            invitation = activity.invitations.get(to_user=request.user)
+        except Invitation.DoesNotExist:
+            # Якщо користувач — creator, шукаємо по invitation з from_user
+            return Response({
+                'total': activity.checkpoints.count(),
+                'passed': [],
+                'current': 1,
+            })
+
+        passed_ids = list(
+            invitation.passed_checkpoints.values_list('checkpoint_id', flat=True)
+        )
+        total = activity.checkpoints.count()
+        current = len(passed_ids) + 1
+
+        return Response({
+            'total': total,
+            'passed': passed_ids,
+            'current': min(current, total),
+        })
 
     @action(detail=False, methods=['get'], url_path='near-me')
     def near_me(self, request):

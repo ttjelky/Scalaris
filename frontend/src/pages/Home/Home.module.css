@@ -755,6 +755,37 @@
   color: #c02339;
 }
 
+.checkpointProgress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.checkpointStep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 0.82rem;
+  font-weight: 800;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.checkpointStepPassed {
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  box-shadow: 0 2px 8px rgba(198, 255, 61, 0.4);
+}
+
+.checkpointStepNumber {
+  line-height: 1;
+}
+
 .leaveBtn {
   margin-top: 18px;
   width: 100%;
