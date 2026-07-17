@@ -11,7 +11,7 @@
 .topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: max(16px, env(safe-area-inset-top)) 20px 12px;
 }
 
@@ -40,17 +40,21 @@
 .editButton {
   border: 1px solid var(--color-line, #e5e5e5);
   border-radius: var(--radius-pill, 999px);
-  padding: 8px 16px;
+  padding: 9px 22px;
   background: var(--color-bg, #ffffff);
   color: var(--color-ink, #0b0b0c);
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.2s var(--ease-track, ease);
+  transition: background 0.2s var(--ease-track, ease), transform 0.12s var(--ease-track, ease);
 }
 
 .editButton:hover {
   background: var(--color-line, #f0f0f0);
+}
+
+.editButton:active {
+  transform: scale(0.97);
 }
 
 .content {
@@ -64,7 +68,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 20px 0 28px;
   text-align: center;
 }
@@ -73,6 +77,8 @@
   position: relative;
   width: 104px;
   height: 104px;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .avatarImg {
@@ -81,6 +87,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--color-line, #e5e5e5);
+  display: block;
 }
 
 .avatarFallback {
@@ -175,6 +182,28 @@
 .textarea:focus-visible {
   outline: none;
   border-color: var(--color-ink, #0b0b0c);
+}
+
+.textInput {
+  appearance: none;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  border-radius: var(--radius-sm, 16px);
+  padding: 14px 16px;
+  font-size: 15px;
+  font-family: var(--font-body, inherit);
+  color: var(--color-ink, #0b0b0c);
+  transition: border-color 0.15s var(--ease-track, ease);
+}
+
+.textInput:focus-visible {
+  outline: none;
+  border-color: var(--color-ink, #0b0b0c);
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: var(--color-ink-soft, #6b6b70);
 }
 
 .charCount {
@@ -305,61 +334,99 @@
   margin-right: auto;
 }
 
-.socialRow {
+.socialChipsRow {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.socialChip {
+  appearance: none;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.socialName {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-ink, #0b0b0c);
-}
-
-.socialConnect {
+  gap: 8px;
   border: 1px solid var(--color-line, #e5e5e5);
   border-radius: var(--radius-pill, 999px);
-  padding: 8px 16px;
+  padding: 6px 16px 6px 6px;
   background: var(--color-bg, #ffffff);
   color: var(--color-ink, #0b0b0c);
   font-weight: 700;
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.2s var(--ease-track, ease);
+  transition: background 0.15s var(--ease-track, ease), border-color 0.15s var(--ease-track, ease),
+    transform 0.12s var(--ease-track, ease);
 }
 
-.socialConnect:hover {
-  background: var(--color-line, #f0f0f0);
+.socialChip:hover {
+  background: var(--color-surface, #f7f7f5);
 }
 
-.socialConnected {
+.socialChip:active {
+  transform: scale(0.97);
+}
+
+.socialChipConnected {
+  padding-right: 6px;
+  border-color: var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  cursor: default;
+}
+
+.socialChipConnected:hover {
+  background: var(--color-surface, #f7f7f5);
+}
+
+.socialChipIcon {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #ffffff;
 }
 
-.socialHandle {
-  font-size: 13px;
-  color: var(--color-ink-soft, #6b6b70);
+.socialChipIconDiscord {
+  background: #5865f2;
 }
 
-.socialUnlink {
+.socialChipIconTelegram {
+  background: #26a5e4;
+}
+
+.socialChipLabel {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.socialChipUnlink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
   border: none;
+  border-radius: 50%;
   background: none;
-  padding: 4px;
-  color: var(--color-danger, #d9463f);
-  font-weight: 700;
-  font-size: 12px;
+  padding: 0;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 15px;
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), color 0.15s var(--ease-track, ease);
 }
 
-.socialUnlink:hover:not(:disabled) {
-  opacity: 0.75;
+.socialChipUnlink:hover:not(:disabled) {
+  background: #fdeceb;
+  color: var(--color-danger, #d9463f);
 }
 
-.socialUnlink:disabled {
+.socialChipUnlink:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -369,20 +436,87 @@
   color: var(--color-ink-soft, #6b6b70);
 }
 
+.phoneRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.phoneIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-soft, #6b6b70);
+  flex-shrink: 0;
+}
+
+.phoneValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.phoneAddButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--color-line, #e5e5e5);
+  border-radius: var(--radius-pill, 999px);
+  padding: 7px 16px;
+  background: none;
+  color: var(--color-ink-soft, #6b6b70);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-track, ease), color 0.2s var(--ease-track, ease);
+}
+
+.phoneAddButton:hover {
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+}
+
+
 .logoutButton {
   margin: 32px auto 0;
-  display: block;
-  border: none;
-  background: none;
-  padding: 10px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid rgba(217, 70, 63, 0.18);
+  border-radius: var(--radius-pill, 999px);
+  background: #fdeceb;
+  padding: 13px 22px 13px 16px;
   color: var(--color-danger, #d9463f);
   font-weight: 700;
   font-size: 14px;
   cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), transform 0.12s var(--ease-track, ease),
+    box-shadow 0.15s var(--ease-track, ease);
 }
 
 .logoutButton:hover {
-  opacity: 0.75;
+  background: #fbdedb;
+  box-shadow: 0 4px 14px rgba(217, 70, 63, 0.14);
+}
+
+.logoutButton:active {
+  transform: scale(0.98);
+}
+
+.logoutIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(217, 70, 63, 0.12);
 }
 
 .safetyActions {
