@@ -227,6 +227,56 @@ class ActivityViewSet(viewsets.ModelViewSet):
         serializer = ActivityListSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], url_path='zones/nearby')
+    def nearby_zones(self, request):
+        """Повертає активні ігрові зони поруч — видні всім користувачам."""
+        try:
+            lat = float(request.query_params['lat'])
+            lng = float(request.query_params['lng'])
+            radius_km = float(request.query_params.get('radius', 5))
+        except (KeyError, ValueError):
+            return Response(
+                {'detail': 'Потрібні числові параметри lat, lng (radius — опційний, км)'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        point = Point(lng, lat, srid=4326)
+        zones = (
+            Activity.objects.filter(
+                category=Activity.Category.ZONE,
+                live_status__in=[Activity.LiveStatus.ACTIVE, Activity.LiveStatus.PENDING],
+                point__distance_lte=(point, D(km=radius_km)),
+            )
+            .select_related('creator')
+            .prefetch_related('invitations__to_user')
+        )
+
+        data = []
+        for zone in zones:
+            participants = [
+                {
+                    'id': inv.to_user.pk,
+                    'username': inv.to_user.username,
+                    'avatar': inv.to_user.avatar.url if inv.to_user.avatar else None,
+                    'status': inv.status,
+                }
+                for inv in zone.invitations.all()
+            ]
+            data.append({
+                'id': zone.pk,
+                'title': zone.title,
+                'description': zone.description,
+                'latitude': zone.point.y,
+                'longitude': zone.point.x,
+                'radius': zone.geofence_radius_m,
+                'is_friends_only': zone.is_friends_only,
+                'creator': UserPublicSerializer(zone.creator).data,
+                'participants': participants,
+                'created_at': zone.created_at.isoformat(),
+            })
+
+        return Response(data)
+
 
 class InvitationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Список і перегляд запрошень, де поточний юзер є відправником або отримувачем."""

@@ -11,6 +11,7 @@ import styles from './Home.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
 const CrossActivityForm = lazy(() => import('../../components/CrossActivityForm/CrossActivityForm'));
+const GameZoneForm = lazy(() => import('../../components/GameZoneForm/GameZoneForm'));
 
 // Drag distance (px) needed to trigger a state change when releasing the sheet.
 const COLLAPSE_THRESHOLD = 60;
@@ -123,6 +124,17 @@ const ACTIVITIES = [
       </svg>
     ),
   },
+  {
+    id: 'zone',
+    label: 'Ігрова зона',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" strokeDasharray="3 2" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Home() {
@@ -132,11 +144,16 @@ export default function Home() {
   const [position, setPosition] = useState(null);
   const [nearbyUsers, setNearbyUsers] = useState([]);
   const [nearbyActivities, setNearbyActivities] = useState([]);
+  const [activeZones, setActiveZones] = useState([]);
+  const [selectedZone, setSelectedZone] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
   const authRef = useRef(isAuthenticated);
-  authRef.current = isAuthenticated;
+
+  useEffect(() => {
+    authRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
@@ -244,6 +261,7 @@ export default function Home() {
 
   const handlePillClick = (activity) => {
     if (!canCreateActivity) return;
+    setSelectedZone(null);
     setActiveActivityId(activity.id);
     setSheetState('expanded');
   };
@@ -256,6 +274,11 @@ export default function Home() {
   // MapView's mini profile card when tapping a user marker on the map.
   const handleViewProfile = (person) => {
     navigate(`/profile/${person.id}`);
+  };
+
+  const handleZoneClick = (zone) => {
+    setSelectedZone(zone);
+    setSheetState('expanded');
   };
   // ------------------------------------------------------------------------
 
@@ -328,6 +351,20 @@ export default function Home() {
           setNearbyUsers(data);
         } catch {
           setNearbyUsers([]);
+        }
+
+        // active game zones nearby (best-effort)
+        try {
+          const { data } = await api.get('/activities/zones/nearby/', {
+            params: {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              radius: 5,
+            },
+          });
+          setActiveZones(data);
+        } catch {
+          setActiveZones([]);
         }
 
         // sync location to backend (best-effort)
@@ -413,6 +450,11 @@ export default function Home() {
     return {
       point: [ongoingActivity.latitude, ongoingActivity.longitude],
       title: ongoingActivity.title,
+      category: ongoingActivity.category,
+      description: ongoingActivity.description,
+      radius: ongoingActivity.geofence_radius_m,
+      creator: ongoingActivity.creator,
+      participantCount: (ongoingActivity.participants || []).length,
       acceptedIds: (ongoingActivity.participants || [])
         .filter((p) => p.status === 'accepted' || p.status === 'arrived')
         .map((p) => p.id),
@@ -621,6 +663,8 @@ export default function Home() {
             position={position}
             nearbyUsers={nearbyUsersFiltered}
             activities={nearbyActivities}
+            zones={activeZones}
+            onZoneClick={handleZoneClick}
             gathering={gatheringMapData}
             onViewProfile={handleViewProfile}
           />
@@ -691,6 +735,27 @@ export default function Home() {
                   <span className={styles.heroBadgeLabel}>триває</span>
                 </div>
               </>
+            ) : selectedZone ? (
+              <>
+                <button
+                  type="button"
+                  className={styles.sheetBackBtn}
+                  onClick={(e) => { e.stopPropagation(); setSelectedZone(null); setSheetState('collapsed'); }}
+                  aria-label="Закрити"
+                >
+                  ←
+                </button>
+                <div className={styles.heroTitleBlock}>
+                  <h1 className={styles.heroTitle}>{selectedZone.title}</h1>
+                  <p className={styles.heroDistance}>Радіус: {selectedZone.radius || 80} м</p>
+                </div>
+                <div className={styles.heroBadge}>
+                  <span className={styles.heroBadgeValue}>
+                    {selectedZone.participants?.length || 0}
+                  </span>
+                  <span className={styles.heroBadgeLabel}>учасників</span>
+                </div>
+              </>
             ) : (
               <>
                 <div>
@@ -712,6 +777,13 @@ export default function Home() {
           <Suspense fallback={<div className={styles.formLoading}>Завантаження форми…</div>}>
             {activeActivity.id === 'cross' ? (
               <CrossActivityForm
+                initialPosition={position}
+                nearbyUsers={nearbyUsers}
+                onCancel={handleCancelCreate}
+                onCreated={handleActivityCreated}
+              />
+            ) : activeActivity.id === 'zone' ? (
+              <GameZoneForm
                 initialPosition={position}
                 nearbyUsers={nearbyUsers}
                 onCancel={handleCancelCreate}
@@ -796,6 +868,47 @@ export default function Home() {
             >
               {leaving ? 'Виходимо…' : 'Вийти'}
             </button>
+          </div>
+        ) : selectedZone ? (
+          <div className={styles.ongoingWrap}>
+            {selectedZone.description && (
+              <p className={styles.heroText}>{selectedZone.description}</p>
+            )}
+
+            <div className={styles.zoneInfoRow}>
+              <span className={styles.zoneInfoLabel}>Створив</span>
+              <span className={styles.zoneInfoValue}>
+                {selectedZone.creator?.username || '—'}
+              </span>
+            </div>
+            <div className={styles.zoneInfoRow}>
+              <span className={styles.zoneInfoLabel}>Радіус</span>
+              <span className={styles.zoneInfoValue}>{selectedZone.radius || 80} м</span>
+            </div>
+            <div className={styles.zoneInfoRow}>
+              <span className={styles.zoneInfoLabel}>Видимість</span>
+              <span className={styles.zoneInfoValue}>{selectedZone.is_friends_only ? 'Тільки друзі' : 'Для всіх'}</span>
+            </div>
+
+            <p className={styles.ongoingParticipantsTitle}>Учасники</p>
+            <div className={styles.ongoingParticipantsList}>
+              {(!selectedZone.participants || selectedZone.participants.length === 0) ? (
+                <div className={styles.emptyState}>Поки що ніхто не приєднався</div>
+              ) : (
+                selectedZone.participants.map((p) => (
+                  <Link className={styles.ongoingParticipant} key={p.id} to={`/profile/${p.id}`}>
+                    {p.avatar ? (
+                      <img src={p.avatar} alt="" className={styles.ongoingParticipantAvatarImg} />
+                    ) : (
+                      <span className={styles.ongoingParticipantAvatar}>
+                        {p.username?.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <span className={styles.ongoingParticipantName}>{p.username}</span>
+                  </Link>
+                ))
+              )}
+            </div>
           </div>
         ) : (
           <>

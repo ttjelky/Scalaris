@@ -723,6 +723,26 @@
   flex-direction: column;
 }
 
+.zoneInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line, #e5e5e5);
+}
+
+.zoneInfoLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.zoneInfoValue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+}
+
 .ongoingParticipantsTitle {
   margin: 4px 0 10px;
   font-size: 0.7rem;

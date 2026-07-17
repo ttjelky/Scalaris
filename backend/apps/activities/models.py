@@ -28,6 +28,7 @@ class Activity(models.Model):
         WALK = 'walk', 'Прогулянка'
         HANGOUT = 'hangout', 'Тусовка'
         CROSS = 'cross', 'Крос'
+        ZONE = 'zone', 'Ігрова зона'
 
     class LiveStatus(models.TextChoices):
         PENDING = 'pending', 'Очікує підтверджень'
@@ -71,6 +72,12 @@ class Activity(models.Model):
     duration_seconds = models.PositiveIntegerField(
         null=True, blank=True,
         help_text='Тривалість кросу в секундах (для category=cross)'
+    )
+
+    # --- Ігрова зона (тільки для category='zone') ---
+    is_friends_only = models.BooleanField(
+        default=False,
+        help_text='Якщо True — зона видна тільки друзям творця'
     )
 
     class Meta:

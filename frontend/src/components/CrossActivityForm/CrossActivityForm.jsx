@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import api from '../../api/axios';
 import styles from './CrossActivityForm.module.css';
@@ -11,15 +11,6 @@ function ErrorIcon() {
       <circle cx="12" cy="16.2" r="1.1" fill="currentColor" />
     </svg>
   );
-}
-
-function formatDurationInput(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}год ${m}хв`;
-  if (m > 0) return `${m}хв ${s}с`;
-  return `${s}с`;
 }
 
 const CHECKPOINT_COLORS = [
@@ -122,7 +113,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
   useEffect(() => {
     if (!mapRef.current) return;
     markersRef.current.forEach((m) => {
-      try { mapRef.current.removeLayer(m); } catch {}
+      try { mapRef.current.removeLayer(m); } catch { /* layer may already be removed */ }
     });
     markersRef.current = checkpoints.map((cp, i) => placeCheckpointMarker(cp, i));
     updatePolyline(checkpoints);
