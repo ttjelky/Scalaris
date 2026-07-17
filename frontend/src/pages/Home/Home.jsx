@@ -47,6 +47,27 @@ function formatDurationLong(ms) {
   return `${s} с`;
 }
 
+// Great-circle distance (km) between two [lat, lng] points, used to show
+// how far the user currently is from an ongoing gathering's location.
+function haversineDistanceKm([lat1, lon1], [lat2, lon2]) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Formats a distance in km as a short label for the hero row, switching to
+// meters under 1 km, e.g. "850 м" or "3.4 км".
+function formatDistance(km) {
+  if (km == null || Number.isNaN(km)) return null;
+  if (km < 1) return `${Math.round(km * 1000)} м`;
+  return `${km.toFixed(km < 10 ? 1 : 0)} км`;
+}
+
 // Ticks once a second while an activity is ongoing, giving back the
 // elapsed time in ms since its started_at.
 function useElapsedTime(startedAt) {
@@ -307,6 +328,21 @@ export default function Home() {
   }, []);
 
   const nearbyCount = useMemo(() => nearbyUsers.length, [nearbyUsers]);
+
+  // Distance from the user's current position to the ongoing gathering's
+  // point, shown under the "Збір" title in the sheet header.
+  const ongoingDistanceLabel = useMemo(() => {
+    if (!position || !ongoingActivity?.latitude || !ongoingActivity?.longitude) return null;
+    const km = haversineDistanceKm(position, [ongoingActivity.latitude, ongoingActivity.longitude]);
+    return formatDistance(km);
+  }, [position, ongoingActivity]);
+
+  // Participant count for the ongoing gathering, shown in place of the
+  // back arrow while the sheet is collapsed.
+  const ongoingParticipantsCount = useMemo(
+    () => (ongoingActivity?.participants || []).length,
+    [ongoingActivity]
+  );
 
   // While a gathering is ongoing, periodically re-fetch it so newly accepted
   // participants (participants[].status, from the backend) show up on the
@@ -571,18 +607,18 @@ export default function Home() {
               </>
             ) : ongoingActivity ? (
               <>
-                <button
-                  type="button"
+                <div
                   className={styles.sheetBackBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOngoingActivity(null);
-                  }}
-                  aria-label="До людей поруч"
+                  aria-label={`Учасників у зборі: ${ongoingParticipantsCount}`}
                 >
-                  ←
-                </button>
-                <h1 className={styles.heroTitle}>{ongoingActivity.title || 'Збір'}</h1>
+                  {ongoingParticipantsCount}
+                </div>
+                <div className={styles.heroTitleBlock}>
+                  <h1 className={styles.heroTitle}>{ongoingActivity.title || 'Збір'}</h1>
+                  {ongoingDistanceLabel && (
+                    <p className={styles.heroDistance}>{ongoingDistanceLabel}</p>
+                  )}
+                </div>
                 <div className={styles.heroBadge}>
                   <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
                     {formatClock(ongoingElapsed)}

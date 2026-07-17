@@ -357,6 +357,16 @@
   font-size: 0.55rem;
 }
 
+/* Peek state should only ever show the handle + hero row. The participants
+   title/list/leave button below have no collapse animation of their own
+   (unlike .heroText / .userList), so without this they'd otherwise peek
+   out from under the clipped max-height as a sliver of text. */
+.sheetCollapsed .ongoingParticipantsTitle,
+.sheetCollapsed .ongoingParticipantsList,
+.sheetCollapsed .leaveBtn {
+  display: none;
+}
+
 .sheetHeader {
   cursor: pointer;
   touch-action: none;
@@ -410,6 +420,24 @@
   line-height: 1;
   letter-spacing: -0.01em;
   color: var(--color-ink, #0b0b0c);
+}
+
+.heroTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.heroDistance {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.sheetCollapsed .heroDistance {
+  font-size: 0.7rem;
 }
 
 .heroBadge {
