@@ -14,8 +14,6 @@ from .views import (
     PasswordResetView,
     RegisterView,
     ReportUserView,
-    TelegramLinkStartView,
-    TelegramUnlinkView,
     UserDetailView,
 )
 from .token_views import EmailTokenObtainPairView, CookieTokenRefreshView
@@ -32,8 +30,6 @@ urlpatterns = [
     path('blocked/', BlockedUsersListView.as_view(), name='user-blocked-list'),
     path('password-reset/', PasswordResetView.as_view(), name='password-reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
-    path('oauth/telegram/start/', TelegramLinkStartView.as_view(), name='oauth-telegram-start'),
-    path('oauth/telegram/unlink/', TelegramUnlinkView.as_view(), name='oauth-telegram-unlink'),
     path('<int:pk>/block/', BlockView.as_view(), name='user-block'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('<int:pk>/report/', ReportUserView.as_view(), name='user-report'),

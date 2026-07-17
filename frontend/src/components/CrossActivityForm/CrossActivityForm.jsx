@@ -14,15 +14,6 @@ function ErrorIcon() {
   );
 }
 
-function formatDurationInput(totalSeconds) {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if (h > 0) return `${h}год ${m}хв`;
-  if (m > 0) return `${m}хв ${s}с`;
-  return `${s}с`;
-}
-
 const CHECKPOINT_COLORS = [
   '#c6ff3d', '#ff6b6b', '#4ecdc4', '#a78bfa',
   '#f59e0b', '#ec4899', '#10b981', '#6366f1',
@@ -144,7 +135,7 @@ export default function CrossActivityForm({ initialPosition, nearbyUsers = [], o
   useEffect(() => {
     if (!mapRef.current) return;
     markersRef.current.forEach((m) => {
-      try { mapRef.current.removeLayer(m); } catch {}
+      try { mapRef.current.removeLayer(m); } catch { /* layer may already be removed */ }
     });
     markersRef.current = checkpoints.map((cp, i) => placeCheckpointMarker(cp, i));
     updatePolyline(checkpoints);

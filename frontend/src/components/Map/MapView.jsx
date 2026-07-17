@@ -333,6 +333,9 @@ function ProfileMiniCard({ person, onClose, onViewProfile }) {
 // route from `position` to it, and highlights nearbyUsers whose id is in
 // acceptedIds.
 //
+// `zones` (optional): array of zone objects visible to everyone on the map.
+//
+// `onZoneClick` (optional): called with a zone object when a zone circle is clicked.
 // `checkpoints` (optional): { items, currentId, passedIds, userPosition }
 // For cross activities — shows all checkpoints as numbered markers on the
 // map, highlights the current one, and draws a route from the user to it.
@@ -340,7 +343,7 @@ function ProfileMiniCard({ person, onClose, onViewProfile }) {
 // `onViewProfile` (optional): called with a person object when someone taps
 // "Перейти в профіль" on the mini profile card opened from a cluster popup.
 // Left to the caller since navigation (route, modal, etc.) is app-specific.
-const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, checkpoints, className, onViewProfile }, ref) {
+const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, zones, onZoneClick, className, onViewProfile }, ref) {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
   const acceptedIds = gathering?.acceptedIds || [];
@@ -397,13 +400,41 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
         <ZoomWatcher onZoomChange={setZoom} />
         <Marker position={position} icon={ownIcon} />
 
-      {gathering && cpItems.length === 0 && (
+        {(zones || []).map((zone) => (
+          <Circle
+            key={zone.id}
+            center={[zone.latitude, zone.longitude]}
+            radius={zone.radius || 80}
+            pathOptions={{
+              color: '#c6ff3d',
+              fillColor: '#c6ff3d',
+              fillOpacity: 0.15,
+              weight: 2,
+            }}
+            eventHandlers={{
+              click: () => onZoneClick?.(zone),
+            }}
+          />
+        ))}
+
+      {gathering && gathering.category === 'zone' ? (
+        <Circle
+          center={gathering.point}
+          radius={gathering.radius || 80}
+          pathOptions={{
+            color: '#c6ff3d',
+            fillColor: '#c6ff3d',
+            fillOpacity: 0.15,
+            weight: 2,
+          }}
+        />
+      ) : gathering ? (
         <Marker position={gathering.point} icon={gatheringIcon}>
           <Tooltip permanent direction="top" offset={[0, -16]} className="map-gathering-label">
             {gathering.title || 'Збір'}
           </Tooltip>
         </Marker>
-      )}
+      ) : null}
 
         {cpItems.length > 0 && (
           <CheckpointLayer

@@ -112,9 +112,9 @@ class ActivitySerializer(serializers.ModelSerializer):
         queryset=User.objects.all(),
         many=True,
         write_only=True,
-        required=True,
-        allow_empty=False,
-        help_text='Список id користувачів, яких запрошуємо. Мінімум 1, максимум 8.'
+        required=False,
+        allow_empty=True,
+        help_text='Список id користувачів, яких запрошуємо. Максимум 8.'
     )
     checkpoints_data = CheckpointWriteSerializer(
         many=True,
@@ -145,7 +145,7 @@ class ActivitySerializer(serializers.ModelSerializer):
             'latitude', 'longitude', 'started_at', 'category', 'created_at',
             'live_status', 'geofence_radius_m', 'activated_at', 'completed_at',
             'participant_ids', 'participants', 'checkpoints',
-            'checkpoints_data', 'duration_seconds',
+            'checkpoints_data', 'duration_seconds', 'is_friends_only',
         ]
         read_only_fields = [
             'id', 'creator', 'created_at', 'started_at',
@@ -210,6 +210,26 @@ class ActivitySerializer(serializers.ModelSerializer):
                     {"checkpoints_data": "Порядок чекпоїнтів має бути послідовним: 1, 2, 3 …"}
                 )
 
+        # Для ігрової зони обов'язковий радіус
+        if category == Activity.Category.ZONE:
+            participants = attrs.get('participant_ids', [])
+            if participants and len(participants) > self.MAX_PARTICIPANTS:
+                raise serializers.ValidationError(
+                    {"participant_ids": f"Максимум {self.MAX_PARTICIPANTS} учасників на одну активність."}
+                )
+
+        # Для всіх крім зони — обов'язкові учасники
+        if category != Activity.Category.ZONE:
+            participants = attrs.get('participant_ids', [])
+            if not participants:
+                raise serializers.ValidationError(
+                    {"participant_ids": "Потрібно запросити хоча б одного учасника."}
+                )
+            if len(participants) > self.MAX_PARTICIPANTS:
+                raise serializers.ValidationError(
+                    {"participant_ids": f"Максимум {self.MAX_PARTICIPANTS} учасників на одну активність."}
+                )
+
         return attrs
 
     def to_representation(self, instance):
@@ -222,7 +242,7 @@ class ActivitySerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         lat = validated_data.pop('latitude')
         lng = validated_data.pop('longitude')
-        participants = validated_data.pop('participant_ids')
+        participants = validated_data.pop('participant_ids', [])
         checkpoints_data = validated_data.pop('checkpoints_data', [])
 
         now = timezone.now()
@@ -257,6 +277,17 @@ class ActivitySerializer(serializers.ModelSerializer):
                 )
                 for cp in checkpoints_data
             ])
+
+        # Real-time WebSocket: notify each invited participant
+        try:
+            from api.consumers import notify_user
+            from apps.users.models import FriendRequest
+            for user in participants:
+                fr_count = FriendRequest.objects.filter(to_user=user).count()
+                inv_count = Invitation.objects.filter(to_user=user, status=Invitation.Status.PENDING).count()
+                notify_user(user.pk, fr_count + inv_count)
+        except Exception:
+            pass
 
         return activity
 
@@ -352,4 +383,27 @@ class InvitationRespondSerializer(serializers.ModelSerializer):
             instance.accept()  # Внутрішній метод активує сесію та оновить responded_at
         elif status == Invitation.Status.DECLINED:
             instance.decline()  # Оновить responded_at
+
+        # Real-time WebSocket: notify activity participants about status change
+        try:
+            from api.consumers import notify_activity_participants, notify_user
+            from apps.users.models import FriendRequest
+
+            participant = {
+                'id': instance.to_user.id,
+                'username': instance.to_user.username,
+                'status': instance.status,
+            }
+            notify_activity_participants(instance.activity_id, participant, instance.activity.live_status)
+
+            # Also update notification count for the activity creator
+            fr_count = FriendRequest.objects.filter(to_user=instance.activity.creator).count()
+            inv_count = Invitation.objects.filter(
+                to_user=instance.activity.creator,
+                status=Invitation.Status.PENDING,
+            ).count()
+            notify_user(instance.activity.creator_id, fr_count + inv_count)
+        except Exception:
+            pass
+
         return instance

@@ -482,6 +482,65 @@
   display: none;
 }
 
+/* Zone popup content — shown when clicking an Игрова зона circle on the map. */
+.zonePopup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.zonePopupTitle {
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--color-accent, #c6ff3d);
+}
+
+.zonePopupDesc {
+  font-size: 0.78rem;
+  color: #b0b0b4;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.zonePopupMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: #8a8a8e;
+  margin-top: 2px;
+}
+
+.zonePopupParticipants {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.zonePopupParticipantsLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b0b0b4;
+}
+
+.zonePopupParticipantsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.zonePopupParticipant {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-accent, #c6ff3d);
+  background: rgba(198, 255, 61, 0.12);
+  padding: 2px 8px;
+  border-radius: 999px;
 /* Checkpoint tooltip — same pill treatment as gathering label. */
 :global(.map-checkpoint-label) {
   background: var(--color-ink, #0b0b0c);

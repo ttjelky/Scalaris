@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getNotificationsCount } from '../../api/notifications';
+import useNotifications from '../../hooks/useNotifications';
 import styles from './Navbar.module.css';
 
 const ICONS = {
@@ -49,25 +49,13 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [notifCount, setNotifCount] = useState(0);
   const rootRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { notifCount } = useNotifications();
 
   const close = () => setOpen(false);
-
-  const fetchCount = useCallback(() => {
-    getNotificationsCount()
-      .then(({ data }) => setNotifCount(data.count || 0))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCount]);
 
   useEffect(() => {
     close();
