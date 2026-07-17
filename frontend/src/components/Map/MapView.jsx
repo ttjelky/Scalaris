@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Circle, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -343,7 +343,7 @@ function ProfileMiniCard({ person, onClose, onViewProfile }) {
 // `onViewProfile` (optional): called with a person object when someone taps
 // "Перейти в профіль" on the mini profile card opened from a cluster popup.
 // Left to the caller since navigation (route, modal, etc.) is app-specific.
-const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, zones, onZoneClick, className, onViewProfile }, ref) {
+const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, checkpoints, zones, onZoneClick, className, onViewProfile }, ref) {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
   const acceptedIds = gathering?.acceptedIds || [];

@@ -52,6 +52,16 @@ api.interceptors.request.use((config) => {
 
 let refreshPromise = null;
 
+export async function tryRestoreSession() {
+  try {
+    await refreshAccessToken();
+    return true;
+  } catch {
+    clearAccessToken();
+    return false;
+  }
+}
+
 function refreshAccessToken() {
   if (!refreshPromise) {
     // Separate axios instance for refresh without interceptors to avoid

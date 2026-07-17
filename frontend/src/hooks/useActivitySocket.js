@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken } from '../api/axios';
 
+function closeSocketSafely(socket) {
+  if (!socket) return;
+  socket.onclose = null;
+  socket.onerror = null;
+  if (socket.readyState === WebSocket.CONNECTING) {
+    socket.onopen = () => socket.close();
+    return;
+  }
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
+}
+
 /**
  * WebSocket hook for real-time activity participant status updates.
- * Replaces the 6-second polling interval in Home.jsx for ongoing activities.
  *
  * @param {number|string|null} activityId - The activity to subscribe to, or null to disconnect.
  * @returns {{ participants: Array, liveStatus: string, cancelled: boolean }}
@@ -13,26 +25,34 @@ export default function useActivitySocket(activityId) {
   const [liveStatus, setLiveStatus] = useState('');
   const [cancelled, setCancelled] = useState(false);
   const ws = useRef(null);
+  const connectionId = useRef(0);
 
   useEffect(() => {
-    if (!activityId) return;
+    if (!activityId) return undefined;
 
-    const token = getAccessToken();
-    if (!token) return;
-
-    let reconnectTimer = null;
     let active = true;
+    let reconnectTimer = null;
+    const currentConnectionId = ++connectionId.current;
 
     function connect() {
-      if (!active) return;
+      if (!active || currentConnectionId !== connectionId.current) return;
+
+      const token = getAccessToken();
+      if (!token) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
-      const url = `${protocol}//${host}/api/ws/activity/${activityId}/?token=${token}`;
+      const url = `${protocol}//${host}/api/ws/activity/${activityId}/?token=${encodeURIComponent(token)}`;
 
       try {
         const socket = new WebSocket(url);
         ws.current = socket;
+
+        socket.onopen = () => {
+          if (!active || currentConnectionId !== connectionId.current) {
+            closeSocketSafely(socket);
+          }
+        };
 
         socket.onmessage = (e) => {
           try {
@@ -63,14 +83,13 @@ export default function useActivitySocket(activityId) {
         };
 
         socket.onclose = () => {
-          ws.current = null;
-          if (active) {
-            reconnectTimer = setTimeout(connect, 3000);
-          }
+          if (socket === ws.current) ws.current = null;
+          if (!active || currentConnectionId !== connectionId.current) return;
+          reconnectTimer = setTimeout(connect, 3000);
         };
 
         socket.onerror = () => {
-          socket.close();
+          // onclose handles cleanup/reconnect
         };
       } catch {
         // WebSocket construction failed
@@ -81,8 +100,10 @@ export default function useActivitySocket(activityId) {
 
     return () => {
       active = false;
+      connectionId.current += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws.current) ws.current.close();
+      closeSocketSafely(ws.current);
+      ws.current = null;
     };
   }, [activityId]);
 

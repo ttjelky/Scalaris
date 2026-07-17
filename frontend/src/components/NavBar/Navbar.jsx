@@ -52,8 +52,8 @@ export default function Navbar() {
   const rootRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const { notifCount } = useNotifications();
+  const { logout, isAuthenticated, loading } = useAuth();
+  const { notifCount } = useNotifications(isAuthenticated && !loading);
 
   const close = () => setOpen(false);
 

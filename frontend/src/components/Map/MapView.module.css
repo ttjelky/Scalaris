@@ -541,6 +541,8 @@
   background: rgba(198, 255, 61, 0.12);
   padding: 2px 8px;
   border-radius: 999px;
+}
+
 /* Checkpoint tooltip — same pill treatment as gathering label. */
 :global(.map-checkpoint-label) {
   background: var(--color-ink, #0b0b0c);

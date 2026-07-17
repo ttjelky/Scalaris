@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import api, { clearAccessToken, onAuthFailure, setAccessToken } from '../api/axios';
+import api, { clearAccessToken, onAuthFailure, setAccessToken, tryRestoreSession } from '../api/axios';
 import { getDiscordRedirectUri } from '../utils/discordAuth';
 
 const AuthContext = createContext(null);
@@ -25,10 +25,24 @@ export function AuthProvider({ children }) {
     } catch {
       setUser(null);
       setAuthFailed(true);
+    }
+  }, []);
+
+  const bootstrapAuth = useCallback(async () => {
+    const restored = await tryRestoreSession();
+    if (!restored) {
+      setUser(null);
+      setAuthFailed(false);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await loadMe();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadMe]);
 
   useEffect(() => {
     onAuthFailure(() => {
@@ -41,10 +55,10 @@ export function AuthProvider({ children }) {
     if (!hasRunBootstrap.current) {
       hasRunBootstrap.current = true;
       if (!authBootstrapPromiseRef.current) {
-        authBootstrapPromiseRef.current = loadMe();
+        authBootstrapPromiseRef.current = bootstrapAuth();
       }
     }
-  }, [loadMe]);
+  }, [bootstrapAuth]);
 
   const login = useCallback(
     async (loginValue, password) => {
