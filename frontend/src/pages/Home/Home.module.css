@@ -135,6 +135,44 @@
   cursor: not-allowed;
 }
 
+.friendsFilterButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-ink, #0b0b0c);
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
+  transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
+    border-color 0.2s var(--ease-track, ease);
+}
+
+.friendsFilterButtonActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .friendsFilterButton:hover:not(:disabled) {
+    background: var(--color-accent, #c6ff3d);
+    border-color: var(--color-accent, #c6ff3d);
+    color: var(--color-ink, #0b0b0c);
+  }
+}
+
+.friendsFilterButton:active:not(:disabled) {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  transform: scale(0.92);
+}
+
 .greetingBlock {
   display: inline-flex;
   align-items: center;

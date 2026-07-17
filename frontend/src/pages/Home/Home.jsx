@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import { getFriends } from '../../api/friends';
 import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
 import styles from './Home.module.css';
@@ -118,6 +119,9 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
+
+  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [friendsList, setFriendsList] = useState([]);
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -258,6 +262,25 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    getFriends()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setFriendsList(Array.isArray(data) ? data : data.results || []);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const friendIdSet = useMemo(() => new Set(friendsList.map((f) => f.id)), [friendsList]);
+
+  const nearbyUsersFiltered = useMemo(() => {
+    if (!friendsOnly) return nearbyUsers;
+    return nearbyUsers.filter((u) => friendIdSet.has(u.id));
+  }, [nearbyUsers, friendsOnly, friendIdSet]);
+
+  useEffect(() => {
     if (!navigator.geolocation) {
       setError('Цей браузер не підтримує визначення геопозиції.');
       setLoading(false);
@@ -327,7 +350,7 @@ export default function Home() {
     };
   }, []);
 
-  const nearbyCount = useMemo(() => nearbyUsers.length, [nearbyUsers]);
+  const nearbyCount = useMemo(() => nearbyUsersFiltered.length, [nearbyUsersFiltered]);
 
   // Distance from the user's current position to the ongoing gathering's
   // point, shown under the "Збір" title in the sheet header.
@@ -497,6 +520,33 @@ export default function Home() {
               </svg>
             )}
           </button>
+
+          <button
+            className={`${styles.friendsFilterButton} ${friendsOnly ? styles.friendsFilterButtonActive : ''}`}
+            onClick={() => setFriendsOnly((prev) => !prev)}
+            type="button"
+            aria-pressed={friendsOnly}
+            aria-label={friendsOnly ? 'Показати всіх на карті' : 'Показати тільки друзів'}
+            title={friendsOnly ? 'Тільки друзі' : 'Всі'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
 
         <button
@@ -554,7 +604,7 @@ export default function Home() {
           <MapView
             ref={mapRef}
             position={position}
-            nearbyUsers={nearbyUsers}
+            nearbyUsers={nearbyUsersFiltered}
             activities={nearbyActivities}
             gathering={gatheringMapData}
             onViewProfile={handleViewProfile}
@@ -702,12 +752,14 @@ export default function Home() {
             </p>
 
             <div className={styles.userList} key={sheetState}>
-              {nearbyUsers.length === 0 ? (
+              {nearbyUsersFiltered.length === 0 ? (
                 <div className={styles.emptyState}>
-                  Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.
+                  {friendsOnly
+                    ? 'Немає друзів поруч. Спробуй вимкнути фільтр.'
+                    : 'Поки що нікого поруч немає. Спробуй вийти на вулицю — карта оновиться сама.'}
                 </div>
               ) : (
-                nearbyUsers.map((person) => (
+                nearbyUsersFiltered.map((person) => (
                   <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
                     {person.avatar ? (
                       <img src={person.avatar} alt="" className={styles.userAvatarImg} />

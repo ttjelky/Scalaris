@@ -19,7 +19,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
-from .models import Block, Report, User
+from .models import Block, FriendRequest, Report, User
 from .serializers import (
     FriendRequestSerializer,
     PasswordResetConfirmSerializer,
