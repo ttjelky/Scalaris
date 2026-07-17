@@ -119,6 +119,7 @@ export default function Navbar() {
         <span className={styles.burgerLine} />
         <span className={styles.burgerLine} />
         <span className={styles.burgerLine} />
+        {notifCount > 0 && <span className={styles.burgerBadge}>{notifCount}</span>}
       </button>
 
       <nav className={`${styles.menu} ${open ? styles.menuOpen : ''}`} aria-hidden={!open}>

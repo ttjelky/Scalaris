@@ -139,6 +139,7 @@ export default function Home() {
 
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
+  const [hideNonParticipants, setHideNonParticipants] = useState(false);
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -292,10 +293,25 @@ export default function Home() {
 
   const friendIdSet = useMemo(() => new Set(friendsList.map((f) => f.id)), [friendsList]);
 
+  const activityParticipantIds = useMemo(() => {
+    if (!ongoingActivity) return null;
+    const ids = (ongoingActivity.participants || []).map((p) => p.id);
+    if (ongoingActivity.creator && !ids.includes(ongoingActivity.creator)) {
+      ids.push(ongoingActivity.creator);
+    }
+    return new Set(ids);
+  }, [ongoingActivity]);
+
   const nearbyUsersFiltered = useMemo(() => {
-    if (!friendsOnly) return nearbyUsers;
-    return nearbyUsers.filter((u) => friendIdSet.has(u.id));
-  }, [nearbyUsers, friendsOnly, friendIdSet]);
+    let list = nearbyUsers;
+    if (friendsOnly) {
+      list = list.filter((u) => friendIdSet.has(u.id));
+    }
+    if (hideNonParticipants && activityParticipantIds) {
+      list = list.filter((u) => activityParticipantIds.has(u.id));
+    }
+    return list;
+  }, [nearbyUsers, friendsOnly, friendIdSet, hideNonParticipants, activityParticipantIds]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -456,6 +472,7 @@ export default function Home() {
     } finally {
       setLeaving(false);
       setOngoingActivity(null);
+      setHideNonParticipants(false);
       setSheetState('collapsed');
     }
   };
@@ -472,7 +489,13 @@ export default function Home() {
 
   const visibleOnMap = user?.is_visible_on_map ?? true;
 
+  const hasActivity = !!ongoingActivity;
+
   const toggleVisibility = async () => {
+    if (hasActivity) {
+      setHideNonParticipants((prev) => !prev);
+      return;
+    }
     const next = !visibleOnMap;
     updateUser({ is_visible_on_map: next }); // optimistic
     setTogglingVisibility(true);
@@ -535,11 +558,30 @@ export default function Home() {
             onClick={toggleVisibility}
             type="button"
             disabled={togglingVisibility}
-            aria-pressed={visibleOnMap}
-            aria-label={visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті'}
-            title={visibleOnMap ? 'Видимий на карті' : 'Прихований з карти'}
+            aria-pressed={hasActivity ? hideNonParticipants : visibleOnMap}
+            aria-label={hasActivity
+              ? (hideNonParticipants ? 'Показати всіх на карті' : 'Приховати не-учасників')
+              : (visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті')}
+            title={hasActivity
+              ? (hideNonParticipants ? 'Показати всіх' : 'Тільки учасники')
+              : (visibleOnMap ? 'Видимий на карті' : 'Прихований з карти')}
           >
-            {visibleOnMap ? (
+            {hasActivity ? (
+              hideNonParticipants ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+                  <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )
+            ) : visibleOnMap ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z"
@@ -660,6 +702,16 @@ export default function Home() {
         onClick={() => !activeActivity && setSheetState('collapsed')}
         aria-hidden="true"
       />
+
+      {(hideNonParticipants || friendsOnly) && sheetState !== 'expanded' && (
+        <span className={styles.filterBadge}>
+          {hideNonParticipants && friendsOnly
+            ? 'Друзі · Учасники'
+            : hideNonParticipants
+              ? 'Учасники'
+              : 'Лише друзі'}
+        </span>
+      )}
 
       <div ref={sheetRef} className={sheetClassName}>
         <div

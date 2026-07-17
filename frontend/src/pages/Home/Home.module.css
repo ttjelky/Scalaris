@@ -173,6 +173,24 @@
   transform: scale(0.92);
 }
 
+.filterBadge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px);
+  transform: translateX(-50%);
+  z-index: 601;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
 .greetingBlock {
   display: inline-flex;
   align-items: center;
