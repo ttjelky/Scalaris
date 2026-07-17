@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import api from '../../api/axios';
+import { getFriends } from '../../api/friends';
 import styles from './ActivityForm.module.css';
 
 /**
@@ -34,6 +35,27 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState(null);
   const [clientErrors, setClientErrors] = useState({});
+
+  const [friends, setFriends] = useState([]);
+  const [participantFilter, setParticipantFilter] = useState('all');
+
+  useEffect(() => {
+    let cancelled = false;
+    getFriends()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setFriends(Array.isArray(data) ? data : data.results || []);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const friendIdSet = useMemo(() => new Set(friends.map((f) => f.id)), [friends]);
+
+  const displayedUsers = participantFilter === 'friends'
+    ? nearbyUsers.filter((u) => friendIdSet.has(u.id))
+    : nearbyUsers;
 
   const placeMarker = (p) => {
     if (!mapRef.current) return;
@@ -186,9 +208,31 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
 
       <div className={styles.field}>
         <label>Учасники (1–8)</label>
+        <div className={styles.filterToggle}>
+          <button
+            type="button"
+            className={`${styles.filterBtn} ${participantFilter === 'all' ? styles.filterBtnActive : ''}`}
+            onClick={() => setParticipantFilter('all')}
+          >
+            Усі
+          </button>
+          <button
+            type="button"
+            className={`${styles.filterBtn} ${participantFilter === 'friends' ? styles.filterBtnActive : ''}`}
+            onClick={() => setParticipantFilter('friends')}
+          >
+            Друзі
+          </button>
+        </div>
         <div className={styles.participantsList}>
-          {nearbyUsers.length === 0 && <div className={styles.empty}>Немає доступних користувачів поруч</div>}
-          {nearbyUsers.map((u) => {
+          {displayedUsers.length === 0 && (
+            <div className={styles.empty}>
+              {participantFilter === 'friends'
+                ? 'Немає друзів поруч'
+                : 'Немає доступних користувачів поруч'}
+            </div>
+          )}
+          {displayedUsers.map((u) => {
             const active = selectedParticipants.includes(u.id);
             return (
               <button
