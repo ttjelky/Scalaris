@@ -9,6 +9,7 @@ import Navbar from '../../components/Navbar/Navbar';
 import styles from './Home.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
+const CrossActivityForm = lazy(() => import('../../components/CrossActivityForm/CrossActivityForm'));
 
 // Drag distance (px) needed to trigger a state change when releasing the sheet.
 const COLLAPSE_THRESHOLD = 60;
@@ -107,10 +108,24 @@ const ACTIVITIES = [
       </svg>
     ),
   },
+  {
+    id: 'cross',
+    label: 'Крос',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 12h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="4" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+        <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="2" />
+        <circle cx="20" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+        <circle cx="12" cy="20" r="2" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Home() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const mapRef = useRef(null);
   const [position, setPosition] = useState(null);
@@ -119,6 +134,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
+  const authRef = useRef(isAuthenticated);
+  authRef.current = isAuthenticated;
 
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
@@ -296,6 +313,8 @@ export default function Home() {
         setError('');
         setLoading(false);
 
+        if (!authRef.current) return;
+
         // nearby users (best-effort)
         try {
           const { data } = await api.get('/activities/locations/nearby/', {
@@ -380,8 +399,10 @@ export default function Home() {
         if (!cancelled) {
           setOngoingActivity((prev) => (prev && prev.id === data.id ? { ...prev, ...data } : prev));
         }
-      } catch {
-        // best-effort — keep showing whatever we already have
+      } catch (err) {
+        if (err?.response?.status === 401) {
+          clearInterval(intervalId);
+        }
       }
     };
 
@@ -458,7 +479,8 @@ export default function Home() {
     setActiveActivityId(null);
     setOngoingActivity(activity);
     setSheetState('collapsed');
-    setToast('Збір створено успішно');
+    const toastMsg = activity.category === 'cross' ? 'Крос створено успішно' : 'Збір створено успішно';
+    setToast(toastMsg);
     setTimeout(() => setToast(null), 3500);
 
     if (position) {
@@ -695,18 +717,55 @@ export default function Home() {
 
         {activeActivity ? (
           <Suspense fallback={<div className={styles.formLoading}>Завантаження форми…</div>}>
-            <ActivityForm
-              initialPosition={position}
-              nearbyUsers={nearbyUsers}
-              onCancel={handleCancelCreate}
-              onCreated={handleActivityCreated}
-            />
+            {activeActivity.id === 'cross' ? (
+              <CrossActivityForm
+                initialPosition={position}
+                nearbyUsers={nearbyUsers}
+                onCancel={handleCancelCreate}
+                onCreated={handleActivityCreated}
+              />
+            ) : (
+              <ActivityForm
+                initialPosition={position}
+                nearbyUsers={nearbyUsers}
+                onCancel={handleCancelCreate}
+                onCreated={handleActivityCreated}
+              />
+            )}
           </Suspense>
         ) : ongoingActivity ? (
           <div className={styles.ongoingWrap}>
-            <p className={styles.heroText}>
-              {ongoingActivity.title || 'Збір'} триває вже {formatDurationLong(ongoingElapsed)}.
-            </p>
+            {ongoingActivity.category === 'cross' ? (
+              <>
+                <p className={styles.heroText}>
+                  Крос триває вже {formatDurationLong(ongoingElapsed)}.
+                  {ongoingActivity.duration_seconds && (
+                    <> Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  )}
+                </p>
+
+                <p className={styles.ongoingParticipantsTitle}>Прогрес</p>
+                <div className={styles.checkpointProgress}>
+                  {(ongoingActivity.checkpoints || []).map((cp) => {
+                    const passedByAnyone = (ongoingActivity.participants || []).some(
+                      (p) => (p.passed_checkpoints || []).includes(cp.id)
+                    );
+                    return (
+                      <div
+                        key={cp.id}
+                        className={`${styles.checkpointStep} ${passedByAnyone ? styles.checkpointStepPassed : ''}`}
+                      >
+                        <span className={styles.checkpointStepNumber}>{cp.order}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className={styles.heroText}>
+                {ongoingActivity.title || 'Збір'} триває вже {formatDurationLong(ongoingElapsed)}.
+              </p>
+            )}
 
             <p className={styles.ongoingParticipantsTitle}>Учасники</p>
             <div className={styles.ongoingParticipantsList}>

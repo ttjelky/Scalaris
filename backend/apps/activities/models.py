@@ -27,7 +27,7 @@ class Activity(models.Model):
         SPORT = 'sport', 'Спорт'
         WALK = 'walk', 'Прогулянка'
         HANGOUT = 'hangout', 'Тусовка'
-        
+        CROSS = 'cross', 'Крос'
 
     class LiveStatus(models.TextChoices):
         PENDING = 'pending', 'Очікує підтверджень'
@@ -66,6 +66,12 @@ class Activity(models.Model):
         help_text='Момент першого accept — коли сесія стала live'
     )
     completed_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Крос (тільки для category='cross') ---
+    duration_seconds = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Тривалість кросу в секундах (для category=cross)'
+    )
 
     class Meta:
         ordering = ['-started_at']
@@ -110,6 +116,61 @@ class Activity(models.Model):
             self.live_status = self.LiveStatus.COMPLETED
             self.completed_at = timezone.now()
             self.save(update_fields=['live_status', 'completed_at'])
+
+
+class Checkpoint(models.Model):
+    """Один чекпоїнт у кросі — позиція на карті + порядок проходження."""
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='checkpoints'
+    )
+    order = models.PositiveIntegerField(
+        help_text='Порядок проходження (1, 2, 3 …)'
+    )
+    point = models.PointField(geography=True)
+    radius_m = models.PositiveIntegerField(
+        default=30,
+        help_text='Радіус (м) навколо чекпоїнту для вважання його пройденим'
+    )
+
+    class Meta:
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['activity', 'order'],
+                name='unique_checkpoint_order_per_activity'
+            )
+        ]
+
+    def __str__(self):
+        return f"CP#{self.order} ({self.activity})"
+
+
+class ParticipantCheckpoint(models.Model):
+    """Фіксує момент проходження учасником конкретного чекпоїнту."""
+    invitation = models.ForeignKey(
+        'Invitation',
+        on_delete=models.CASCADE,
+        related_name='passed_checkpoints'
+    )
+    checkpoint = models.ForeignKey(
+        Checkpoint,
+        on_delete=models.CASCADE,
+        related_name='passes'
+    )
+    passed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['invitation', 'checkpoint'],
+                name='unique_invitation_checkpoint'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.invitation} passed {self.checkpoint}"
 
 
 class Invitation(models.Model):

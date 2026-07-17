@@ -1,0 +1,287 @@
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.field {
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.field:last-of-type {
+  margin-bottom: 4px;
+}
+
+.field label {
+  font-weight: 700;
+  font-size: 0.84rem;
+  margin-bottom: 10px;
+  color: var(--color-ink, #0b0b0c);
+}
+
+.field input {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  background: #fff;
+  font-size: 1rem;
+  color: var(--color-ink, #0b0b0c);
+  min-height: 50px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--color-accent, #c6ff3d);
+  box-shadow: 0 0 0 4px rgba(198, 255, 61, 0.35);
+}
+
+.field input:hover {
+  border-color: #cfcfcf;
+}
+
+.mapPreview {
+  height: 210px;
+  border-radius: var(--radius-sm, 16px);
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.checkpointList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.checkpointChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface, #f7f7f5);
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  border-radius: 999px;
+  padding: 6px 12px 6px 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+}
+
+.checkpointDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.checkpointLabel {
+  min-width: 14px;
+  text-align: center;
+}
+
+.checkpointRemove {
+  background: none;
+  border: none;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+.checkpointRemove:hover {
+  color: #c02339;
+}
+
+.durationRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.durationPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+  padding: 9px 16px;
+  min-height: 40px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.durationPill:active {
+  transform: scale(0.96);
+}
+
+.durationPillActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(198, 255, 61, 0.35);
+}
+
+.durationInput {
+  max-width: 120px !important;
+  min-height: 44px !important;
+}
+
+.participantsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.participant {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+  padding: 9px 16px 9px 9px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.participantAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.participant:active {
+  transform: scale(0.96);
+}
+
+.participantActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  font-weight: 800;
+  box-shadow: 0 2px 10px rgba(198, 255, 61, 0.35);
+}
+
+.participantActive .participantAvatar {
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-accent, #c6ff3d);
+}
+
+.fieldError {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c02339;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.serverErrors {
+  margin: 4px 0 16px;
+  color: #c02339;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cancelBtn {
+  flex: 1;
+  background: transparent;
+  border: 1.5px solid var(--color-line, #e5e5e5);
+  color: var(--color-ink, #0b0b0c);
+  padding: 13px 18px;
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.cancelBtn:active {
+  transform: scale(0.97);
+}
+
+.submitBtn {
+  flex: 1.4;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  border: 1.5px solid var(--color-ink, #0b0b0c);
+  padding: 13px 18px;
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty {
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 0.85rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .durationPill:hover {
+    border-color: #cfcfcf;
+    background: #efefec;
+  }
+
+  .participant:hover {
+    border-color: #cfcfcf;
+    background: #efefec;
+  }
+
+  .participantActive:hover {
+    background: var(--color-accent, #c6ff3d);
+    border-color: var(--color-accent, #c6ff3d);
+  }
+
+  .cancelBtn:hover {
+    background: var(--color-surface, #f7f7f5);
+    border-color: #cfcfcf;
+  }
+
+  .submitBtn:hover:not(:disabled) {
+    background: #262626;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+}
