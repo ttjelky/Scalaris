@@ -15,14 +15,6 @@ function DiscordIcon() {
   );
 }
 
-function TelegramIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M21.5 3.9 3.6 10.8c-1.2.5-1.2 1.2-.2 1.5l4.6 1.4 1.7 5.4c.2.6.4.8.8.8.4 0 .6-.2.8-.4l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14.2c.3-1.2-.4-1.7-1.2-1.9ZM8.9 13.4l9.3-5.9c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.1-1.6-4.3Z" />
-    </svg>
-  );
-}
-
 function LogoutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -72,10 +64,6 @@ export default function Profile() {
 
   const [discordUnlinking, setDiscordUnlinking] = useState(false);
   const [socialError, setSocialError] = useState('');
-
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const [telegramDeepLink, setTelegramDeepLink] = useState('');
-  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
 
   const onConfirmLogout = async () => {
     setLoggingOut(true);
@@ -178,33 +166,6 @@ export default function Profile() {
       setSocialError('Не вдалося відʼєднати Discord. Спробуй ще раз.');
     } finally {
       setDiscordUnlinking(false);
-    }
-  };
-
-  const connectTelegram = async () => {
-    setTelegramConnecting(true);
-    setSocialError('');
-    setTelegramDeepLink('');
-    try {
-      const { data } = await api.post('/users/oauth/telegram/start/');
-      setTelegramDeepLink(data.deep_link);
-    } catch {
-      setSocialError('Не вдалося почати підключення Telegram. Спробуй ще раз.');
-      setTelegramConnecting(false);
-    }
-  };
-
-  const disconnectTelegram = async () => {
-    setTelegramUnlinking(true);
-    setSocialError('');
-    try {
-      await api.delete('/users/oauth/telegram/unlink/');
-      updateUser({ telegram_username: '' });
-      setTelegramConnecting(false);
-    } catch {
-      setSocialError('Не вдалося відʼєднати Telegram. Спробуй ще раз.');
-    } finally {
-      setTelegramUnlinking(false);
     }
   };
 
@@ -398,50 +359,7 @@ export default function Profile() {
                   <span className={styles.socialChipLabel}>Discord</span>
                 </button>
               )}
-
-              {profile.telegram_username ? (
-                <span className={`${styles.socialChip} ${styles.socialChipConnected}`}>
-                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
-                    <TelegramIcon />
-                  </span>
-                  <span className={styles.socialChipLabel}>@{profile.telegram_username}</span>
-                  <button
-                    className={styles.socialChipUnlink}
-                    onClick={disconnectTelegram}
-                    type="button"
-                    disabled={telegramUnlinking}
-                    aria-label="Відʼєднати Telegram"
-                  >
-                    {telegramUnlinking ? '…' : '×'}
-                  </button>
-                </span>
-              ) : telegramConnecting ? (
-                <span className={`${styles.socialChip} ${styles.socialChipConnected}`}>
-                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
-                    <TelegramIcon />
-                  </span>
-                  <span className={styles.socialChipLabel}>Очікуємо…</span>
-                </span>
-              ) : (
-                <button className={styles.socialChip} onClick={connectTelegram} type="button">
-                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
-                    <TelegramIcon />
-                  </span>
-                  <span className={styles.socialChipLabel}>Telegram</span>
-                </button>
-              )}
             </div>
-
-            {telegramConnecting && telegramDeepLink && (
-              <a
-                className={styles.socialHint}
-                href={telegramDeepLink}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Не відкрилось автоматично? Відкрити бота ще раз →
-              </a>
-            )}
           </div>
         )}
 

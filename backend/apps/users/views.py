@@ -20,6 +20,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
 from .models import Block, FriendRequest, Report, User
+from api.consumers import notify_user
 from .serializers import (
     FriendRequestSerializer,
     PasswordResetConfirmSerializer,
@@ -527,109 +528,6 @@ class PasswordResetConfirmView(APIView):
         )
 
 
-class DiscordCallbackView(APIView):
-    """POST {code} — фронтенд шле сюди код, який Discord повернув на
-    redirect_uri. Ми міняємо його на access token (потребує CLIENT_SECRET,
-    тому робиться тільки на бекенді, ніколи в браузері), тягнемо
-    /users/@me і прив'язуємо discord_id до поточного юзера."""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        code = request.data.get('code')
-        redirect_uri = request.data.get('redirect_uri') or settings.DISCORD_REDIRECT_URI
-        if not code:
-            return Response({'detail': 'Відсутній code.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        token_resp = requests.post(
-            'https://discord.com/api/oauth2/token',
-            data={
-                'client_id': settings.DISCORD_CLIENT_ID,
-                'client_secret': settings.DISCORD_CLIENT_SECRET,
-                'grant_type': 'authorization_code',
-                'code': code,
-                'redirect_uri': redirect_uri,
-            },
-            headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            timeout=10,
-        )
-        if not token_resp.ok:
-            return Response(
-                {'detail': 'Discord відхилив код авторизації. Спробуй підключити ще раз.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        access_token = token_resp.json().get('access_token')
-
-        user_resp = requests.get(
-            'https://discord.com/api/users/@me',
-            headers={'Authorization': f'Bearer {access_token}'},
-            timeout=10,
-        )
-        if not user_resp.ok:
-            return Response({'detail': 'Не вдалося отримати дані з Discord.'}, status=status.HTTP_400_BAD_REQUEST)
-        discord_user = user_resp.json()
-
-        # Той самий Discord-акаунт міг раніше бути прив'язаний до іншого
-        # нашого юзера (наприклад, стара спроба) — тоді відв'язуємо звідти,
-        # інакше впадемо на unique-constraint.
-        User.objects.filter(discord_id=discord_user['id']).exclude(pk=request.user.pk).update(
-            discord_id=None, discord_username=''
-        )
-
-        request.user.discord_id = discord_user['id']
-        request.user.discord_username = discord_user.get('username', '')
-        request.user.save(update_fields=['discord_id', 'discord_username'])
-
-        return Response(UserSerializer(request.user, context={'request': request}).data)
-
-
-class DiscordUnlinkView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def delete(self, request):
-        request.user.discord_id = None
-        request.user.discord_username = ''
-        request.user.save(update_fields=['discord_id', 'discord_username'])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class TelegramLinkStartView(APIView):
-    """POST — генерує одноразовий код і повертає посилання на бота.
-    Фронтенд відкриває це посилання; юзер тисне /start в Telegram; окремий
-    процес (management command telegram_bot) читає повідомлення бота,
-    знаходить код і прив’язує telegram_id/telegram_username до юзера.
-    Ніякого домену чи Login Widget тут не потрібно.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        if not settings.TELEGRAM_BOT_USERNAME:
-            return Response(
-                {'detail': 'Телеграм ще не налаштований (немає TELEGRAM_BOT_USERNAME).'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        link_code = TelegramLinkCode.generate_for(request.user)
-        return Response({
-            'code': link_code.code,
-            'bot_username': settings.TELEGRAM_BOT_USERNAME,
-            'deep_link': f'https://t.me/{settings.TELEGRAM_BOT_USERNAME}?start={link_code.code}',
-            'expires_in_minutes': TelegramLinkCode.LIFETIME_MINUTES,
-        })
-
-
-class TelegramUnlinkView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def delete(self, request):
-        request.user.telegram_id = None
-        request.user.telegram_username = ''
-        request.user.save(update_fields=['telegram_id', 'telegram_username'])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-# ==========================================
-#          СИСТЕМА ДРУЗІВ (Нові Views)
-# ==========================================
-
 class SendFriendRequestView(APIView):
     """POST /api/users/<pk>/friend-request/ — надіслати запит у друзі."""
     permission_classes = [permissions.IsAuthenticated]
@@ -682,6 +580,16 @@ class SendFriendRequestView(APIView):
             'friend_request_id': friend_request.id,
             'friendship_status': 'request_sent',
         }
+
+        # Real-time notification via WebSocket
+        try:
+            from apps.activities.models import Invitation
+            fr_count = FriendRequest.objects.filter(to_user=target).count()
+            inv_count = Invitation.objects.filter(to_user=target, status='pending').count()
+            notify_user(target.pk, fr_count + inv_count)
+        except Exception:
+            pass
+
         return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
@@ -691,16 +599,31 @@ class AcceptFriendRequestView(APIView):
 
     def post(self, request, pk):
         friend_request = get_object_or_404(FriendRequest, pk=pk, to_user=request.user)
-        
+        from_user = friend_request.from_user
+
         # Додаємо один одного в друзі
-        request.user.friends.add(friend_request.from_user)
-        
+        request.user.friends.add(from_user)
+
         # Видаляємо виконаний запит
         friend_request.delete()
-        
+
         # Видаляємо зустрічний запит, якщо такий випадково є
-        FriendRequest.objects.filter(from_user=request.user, to_user=friend_request.from_user).delete()
-        
+        FriendRequest.objects.filter(from_user=request.user, to_user=from_user).delete()
+
+        # Real-time notification: update both users' notification counts
+        try:
+            from apps.activities.models import Invitation
+            # Notify the original sender (their request was accepted → count decreases)
+            fr_count = FriendRequest.objects.filter(to_user=from_user).count()
+            inv_count = Invitation.objects.filter(to_user=from_user, status='pending').count()
+            notify_user(from_user.pk, fr_count + inv_count)
+            # Notify the accepting user too (their received requests changed)
+            fr_count_me = FriendRequest.objects.filter(to_user=request.user).count()
+            inv_count_me = Invitation.objects.filter(to_user=request.user, status='pending').count()
+            notify_user(request.user.pk, fr_count_me + inv_count_me)
+        except Exception:
+            pass
+
         return Response({'detail': 'Запит прийнято!'}, status=status.HTTP_200_OK)
 
 
@@ -711,11 +634,25 @@ class RejectFriendRequestView(APIView):
     def delete(self, request, pk):
         # Дозволяємо видалити запит як тому, хто отримав, так і тому, хто надіслав
         friend_request = get_object_or_404(
-            FriendRequest, 
+            FriendRequest,
             Q(to_user=request.user) | Q(from_user=request.user),
             pk=pk
         )
+
+        # Determine which user to notify (the one who didn't trigger the delete)
+        other_user = friend_request.from_user if friend_request.to_user == request.user else friend_request.to_user
+
         friend_request.delete()
+
+        # Real-time notification
+        try:
+            from apps.activities.models import Invitation
+            fr_count = FriendRequest.objects.filter(to_user=other_user).count()
+            inv_count = Invitation.objects.filter(to_user=other_user, status='pending').count()
+            notify_user(other_user.pk, fr_count + inv_count)
+        except Exception:
+            pass
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

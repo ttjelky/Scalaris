@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getFriends } from '../../api/friends';
 import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
+import useActivitySocket from '../../hooks/useActivitySocket';
 import styles from './Home.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
@@ -386,32 +387,24 @@ export default function Home() {
     [ongoingActivity]
   );
 
-  // While a gathering is ongoing, periodically re-fetch it so newly accepted
-  // participants (participants[].status, from the backend) show up on the
-  // map highlight without the person having to do anything.
+  // Real-time participant updates via WebSocket (replaces 6-second polling).
+  const { participants: wsParticipants, cancelled: wsCancelled } =
+    useActivitySocket(ongoingActivity?.id || null);
+
+  // Merge WebSocket updates into ongoingActivity state.
   useEffect(() => {
-    if (!ongoingActivity?.id) return undefined;
+    if (!ongoingActivity?.id) return;
+    if (wsParticipants.length > 0) {
+      setOngoingActivity((prev) => (prev && prev.id === ongoingActivity.id ? { ...prev, participants: wsParticipants } : prev));
+    }
+  }, [wsParticipants, ongoingActivity?.id]);
 
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const { data } = await api.get(`/activities/${ongoingActivity.id}/`);
-        if (!cancelled) {
-          setOngoingActivity((prev) => (prev && prev.id === data.id ? { ...prev, ...data } : prev));
-        }
-      } catch (err) {
-        if (err?.response?.status === 401) {
-          clearInterval(intervalId);
-        }
-      }
-    };
-
-    const intervalId = setInterval(poll, 6000);
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [ongoingActivity?.id]);
+  useEffect(() => {
+    if (wsCancelled && ongoingActivity) {
+      setOngoingActivity(null);
+      setSheetState('collapsed');
+    }
+  }, [wsCancelled, ongoingActivity]);
 
   // Point + accepted-participant ids for the map, derived from the ongoing
   // activity. null when there's nothing to show.
