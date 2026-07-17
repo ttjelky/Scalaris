@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 from .views import (
+    BlockedUsersListView,
     BlockView,
     DiscordAuthView,
     DiscordLinkView,
@@ -12,6 +13,9 @@ from .views import (
     PasswordResetConfirmView,
     PasswordResetView,
     RegisterView,
+    ReportUserView,
+    TelegramLinkStartView,
+    TelegramUnlinkView,
     UserDetailView,
 )
 from .token_views import EmailTokenObtainPairView, CookieTokenRefreshView
@@ -25,11 +29,13 @@ urlpatterns = [
     path('oauth/discord/unlink/', DiscordUnlinkView.as_view(), name='discord-unlink'),
     path('logout/', LogoutView.as_view(), name='user-logout'),
     path('me/', MeView.as_view(), name='user-me'),
+    path('blocked/', BlockedUsersListView.as_view(), name='user-blocked-list'),
     path('password-reset/', PasswordResetView.as_view(), name='password-reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('oauth/telegram/start/', TelegramLinkStartView.as_view(), name='oauth-telegram-start'),
+    path('oauth/telegram/unlink/', TelegramUnlinkView.as_view(), name='oauth-telegram-unlink'),
     path('<int:pk>/block/', BlockView.as_view(), name='user-block'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
-    path('<int:pk>/block/', BlockUserView.as_view(), name='user-block'),
     path('<int:pk>/report/', ReportUserView.as_view(), name='user-report'),
     # Дії з конкретними користувачами
     path('<int:pk>/friend-request/', views.SendFriendRequestView.as_view(), name='send-friend-request'),

@@ -19,12 +19,13 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
-from .models import Block, User
+from .models import Block, Report, User
 from .serializers import (
     FriendRequestSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
     RegisterSerializer,
+    ReportSerializer,
     UserPublicSerializer,
     UserSerializer,
 )
@@ -369,6 +370,33 @@ class BlockView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockedUsersListView(generics.ListAPIView):
+    """GET /api/users/blocked/ — список юзерів, яких я заблокував."""
+    serializer_class = UserPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        blocked_ids = Block.objects.filter(blocker=self.request.user).values_list('blocked_id', flat=True)
+        return User.objects.filter(pk__in=blocked_ids)
+
+
+class ReportUserView(APIView):
+    """POST — поскаржитись на юзера (причина + опційні деталі)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна поскаржитись на самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = get_object_or_404(User, pk=pk)
+        serializer = ReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        Report.objects.create(reporter=request.user, reported=target, **serializer.validated_data)
+        return Response({'detail': 'Дякуємо, скаргу надіслано.'}, status=status.HTTP_201_CREATED)
 
 
 class MeView(generics.RetrieveUpdateAPIView):

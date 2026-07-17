@@ -73,6 +73,10 @@ export default function Profile() {
   const [discordUnlinking, setDiscordUnlinking] = useState(false);
   const [socialError, setSocialError] = useState('');
 
+  const [telegramConnecting, setTelegramConnecting] = useState(false);
+  const [telegramDeepLink, setTelegramDeepLink] = useState('');
+  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+
   const onConfirmLogout = async () => {
     setLoggingOut(true);
     try {
@@ -154,16 +158,14 @@ export default function Profile() {
   };
 
   const connectDiscord = () => {
-    try {
-      // Профіль уже має email на нашому боці, тож для прив'язки достатньо 'identify'.
-      redirectToDiscordAuthorize({ scope: 'identify' });
-    } catch (err) {
-      if (err instanceof MissingDiscordClientIdError) {
-        setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
-      } else {
-        setSocialError('Не вдалося почати підключення Discord. Спробуй ще раз.');
-      }
+    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+    if (!clientId) {
+      setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
+      return;
     }
+    const redirectUri = `${window.location.origin}/oauth/discord/callback`;
+    const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify`;
+    window.location.href = url;
   };
 
   const disconnectDiscord = async () => {
@@ -176,6 +178,33 @@ export default function Profile() {
       setSocialError('Не вдалося відʼєднати Discord. Спробуй ще раз.');
     } finally {
       setDiscordUnlinking(false);
+    }
+  };
+
+  const connectTelegram = async () => {
+    setTelegramConnecting(true);
+    setSocialError('');
+    setTelegramDeepLink('');
+    try {
+      const { data } = await api.post('/users/oauth/telegram/start/');
+      setTelegramDeepLink(data.deep_link);
+    } catch {
+      setSocialError('Не вдалося почати підключення Telegram. Спробуй ще раз.');
+      setTelegramConnecting(false);
+    }
+  };
+
+  const disconnectTelegram = async () => {
+    setTelegramUnlinking(true);
+    setSocialError('');
+    try {
+      await api.delete('/users/oauth/telegram/unlink/');
+      updateUser({ telegram_username: '' });
+      setTelegramConnecting(false);
+    } catch {
+      setSocialError('Не вдалося відʼєднати Telegram. Спробуй ще раз.');
+    } finally {
+      setTelegramUnlinking(false);
     }
   };
 
