@@ -295,7 +295,10 @@ export default function Home() {
 
   const activityParticipantIds = useMemo(() => {
     if (!ongoingActivity) return null;
-    const ids = (ongoingActivity.participants || []).map((p) => p.id);
+    const activeStatuses = new Set(['accepted', 'arrived']);
+    const ids = (ongoingActivity.participants || [])
+      .filter((p) => activeStatuses.has(p.status))
+      .map((p) => p.id);
     if (ongoingActivity.creator && !ids.includes(ongoingActivity.creator)) {
       ids.push(ongoingActivity.creator);
     }
