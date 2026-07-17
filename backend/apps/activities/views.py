@@ -107,10 +107,25 @@ class ActivityViewSet(viewsets.ModelViewSet):
         Активний (live) збір поточного користувача, якщо є — фронт викликає
         це при завантаженні сторінки, щоб не втрачати ongoing-стан після
         перезавантаження (React-стейт сам по собі не переживає reload).
+        Шукаємо як серед створених користувачем активностей, так і серед
+        тих, де він прийняв запрошення (accepted/arrived).
         """
+        user = request.user
+        active_status = Activity.LiveStatus.ACTIVE
+
+        # Activities where user is the creator
+        creator_qs = Activity.objects.filter(creator=user, live_status=active_status)
+
+        # Activities where user accepted/arrived via invitation
+        invited_qs = Activity.objects.filter(
+            invitations__to_user=user,
+            invitations__status__in=[Invitation.Status.ACCEPTED, Invitation.Status.ARRIVED],
+            live_status=active_status,
+        )
+
         activity = (
-            self.get_queryset()
-            .filter(creator=request.user, live_status=Activity.LiveStatus.ACTIVE)
+            Activity.objects.filter(Q(pk__in=creator_qs) | Q(pk__in=invited_qs))
+            .select_related('creator')
             .order_by('-started_at')
             .first()
         )
