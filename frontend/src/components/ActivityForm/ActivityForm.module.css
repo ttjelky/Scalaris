@@ -130,6 +130,14 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.participantAvatarImg {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .participant:active {
   transform: scale(0.96);
 }

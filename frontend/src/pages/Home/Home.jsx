@@ -667,9 +667,13 @@ export default function Home() {
                   const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
                   return (
                     <div key={p.id} className={styles.ongoingParticipant}>
-                      <span className={styles.ongoingParticipantAvatar}>
-                        {p.username?.slice(0, 1).toUpperCase()}
-                      </span>
+                      {p.avatar ? (
+                        <img src={p.avatar} alt="" className={styles.ongoingParticipantAvatarImg} />
+                      ) : (
+                        <span className={styles.ongoingParticipantAvatar}>
+                          {p.username?.slice(0, 1).toUpperCase()}
+                        </span>
+                      )}
                       <span className={styles.ongoingParticipantName}>{p.username}</span>
                       <span
                         className={`${styles.ongoingParticipantStatus} ${styles[statusInfo.className] || ''}`}
@@ -705,7 +709,11 @@ export default function Home() {
               ) : (
                 nearbyUsers.map((person) => (
                   <Link className={styles.userCard} key={person.id} to={`/profile/${person.id}`}>
-                    <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                    {person.avatar ? (
+                      <img src={person.avatar} alt="" className={styles.userAvatarImg} />
+                    ) : (
+                      <div className={styles.userAvatar}>{person.username?.slice(0, 1).toUpperCase()}</div>
+                    )}
                     <div className={styles.userMeta}>
                       <div className={styles.userName}>{person.username}</div>
                       <div className={styles.userStatus}>{person.is_online ? 'онлайн' : 'був(ла) нещодавно'}</div>
