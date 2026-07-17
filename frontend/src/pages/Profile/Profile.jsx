@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar/Navbar';
+import FriendsList from '../../components/FriendsList/FriendsList';
+import FriendActionButton from '../../components/FriendActionButton/FriendActionButton';
 import styles from './Profile.module.css';
 
 function DiscordIcon() {
@@ -479,6 +481,8 @@ export default function Profile() {
           </div>
         )}
 
+        {isOwnProfile && !editing && <FriendsList />}
+
         {isOwnProfile && !editing && (
           <button
             className={styles.logoutButton}
@@ -490,6 +494,14 @@ export default function Profile() {
             </span>
             Вийти з акаунту
           </button>
+        )}
+
+        {!isOwnProfile && !editing && !blocked && (
+          <FriendActionButton
+            userId={Number(id)}
+            friendshipStatus={profile.friendship_status}
+            friendRequestId={profile.friend_request_id}
+          />
         )}
 
         {!isOwnProfile && (

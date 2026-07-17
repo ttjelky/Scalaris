@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getNotificationsCount } from '../../api/notifications';
 import styles from './Navbar.module.css';
 
 const ICONS = {
@@ -40,20 +41,33 @@ const ICONS = {
 const ITEMS = [
   { key: 'home', to: '/home', label: 'Головна', icon: 'home' },
   { key: 'profile', to: '/profile', label: 'Профіль', icon: 'user' },
+  { key: 'notifications', to: '/notifications', label: 'Сповіщення', icon: 'bell' },
   { key: 'blocked', to: '/blocked-users', label: 'Заблоковані користувачі', icon: 'lock' },
-  { key: 'notifications', label: 'Сповіщення', icon: 'bell', disabled: true, badge: 'Скоро' },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const rootRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
 
   const close = () => setOpen(false);
+
+  const fetchCount = useCallback(() => {
+    getNotificationsCount()
+      .then(({ data }) => setNotifCount(data.count || 0))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchCount]);
 
   useEffect(() => {
     close();
@@ -112,23 +126,20 @@ export default function Navbar() {
         <ul className={styles.list}>
           {ITEMS.map((item, i) => {
             const isActive = item.to && location.pathname === item.to;
+            const showBadge = item.key === 'notifications' && notifCount > 0;
             const content = (
               <>
                 <span className={styles.itemIcon}>{ICONS[item.icon]}</span>
                 <span className={styles.itemLabel}>{item.label}</span>
-                {item.badge && <span className={styles.itemBadge}>{item.badge}</span>}
+                {showBadge && <span className={styles.notifBadge}>{notifCount}</span>}
               </>
             );
 
             return (
               <li key={item.key} className={styles.item} style={{ transitionDelay: open ? `${i * 40}ms` : '0ms' }}>
-                {item.disabled ? (
-                  <span className={`${styles.itemLink} ${styles.itemDisabled}`}>{content}</span>
-                ) : (
-                  <Link to={item.to} className={`${styles.itemLink} ${isActive ? styles.itemActive : ''}`}>
-                    {content}
-                  </Link>
-                )}
+                <Link to={item.to} className={`${styles.itemLink} ${isActive ? styles.itemActive : ''}`}>
+                  {content}
+                </Link>
               </li>
             );
           })}

@@ -10,6 +10,7 @@ import Home from './pages/Home/Home';
 import WelcomeScreen from './pages/Welcome/WelcomeScreen';
 import Profile from './pages/Profile/Profile';
 import BlockedUsers from './pages/BlockedUsers/BlockedUsers';
+import Notifications from './pages/Notifications/Notifications';
 import DiscordCallback from './pages/OAuth/DiscordCallback';
 import './styles/tokens.css';
 
@@ -32,6 +33,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/blocked-users" element={<BlockedUsers />} />
           <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
         </Route>
