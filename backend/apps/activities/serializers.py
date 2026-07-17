@@ -210,12 +210,14 @@ class ActivitySerializer(serializers.ModelSerializer):
                     {"checkpoints_data": "Порядок чекпоїнтів має бути послідовним: 1, 2, 3 …"}
                 )
 
-        # Для ігрової зони обов'язковий радіус
+        # Ігрова зона: не можна запрошувати учасників, лише обрати видимість
+        # (is_friends_only). Це не активність з інвайтами, а позначка на
+        # мапі, тож participant_ids тут неприпустимі.
         if category == Activity.Category.ZONE:
             participants = attrs.get('participant_ids', [])
-            if participants and len(participants) > self.MAX_PARTICIPANTS:
+            if participants:
                 raise serializers.ValidationError(
-                    {"participant_ids": f"Максимум {self.MAX_PARTICIPANTS} учасників на одну активність."}
+                    {"participant_ids": "У ігрову зону не можна запрошувати учасників — оберіть видимість (is_friends_only) замість цього."}
                 )
 
         # Для всіх крім зони — обов'язкові учасники

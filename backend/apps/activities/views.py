@@ -137,9 +137,18 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='leave')
     def leave(self, request, pk=None):
-        """Творець достроково завершує свій live-збір (кнопка «Вийти» на фронті)."""
+        """
+        Творець достроково завершує свій live-збір (кнопка «Вийти» на фронті).
+
+        Ігрові зони — виняток: це не сесія, яку веде creator і без якого
+        вона втрачає сенс (як «Збір» чи «Крос»), а позначка на мапі з
+        налаштованою видимістю (для всіх / тільки друзі). Вихід творця не
+        повинен скасовувати чи видаляти зону для інших користувачів, тому
+        для category=ZONE просто нічого не скасовуємо.
+        """
         activity = self.get_object()
-        activity.cancel()
+        if activity.category != Activity.Category.ZONE:
+            activity.cancel()
         serializer = self.get_serializer(activity)
         return Response(serializer.data)
 
