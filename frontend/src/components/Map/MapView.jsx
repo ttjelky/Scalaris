@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -129,6 +130,7 @@ function ZoomWatcher({ onZoomChange }) {
 // route from `position` to it, and highlights nearbyUsers whose id is in
 // acceptedIds.
 const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, className }, ref) {
+  const navigate = useNavigate();
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
   const roadRoute = useRoadRoute(position, gathering?.point || null);
@@ -169,6 +171,9 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
             key={person.id}
             position={[person.latitude, person.longitude]}
             icon={isAccepted ? acceptedPersonIcon : personIcon}
+            eventHandlers={{
+              click: () => navigate(`/profile/${person.id}`),
+            }}
           >
             {showLabels && (
               <Tooltip permanent direction="top" offset={[0, -12]} className="map-user-label">

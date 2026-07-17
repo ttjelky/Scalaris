@@ -128,7 +128,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [(config('REDIS_HOST', default='127.0.0.1'), config('REDIS_PORT', default=6379, cast=int))],
         },
     },
 }
@@ -179,9 +179,6 @@ DISCORD_CLIENT_ID = config('DISCORD_CLIENT_ID', default='')
 DISCORD_CLIENT_SECRET = config('DISCORD_CLIENT_SECRET', default='')
 DISCORD_REDIRECT_URI = config('DISCORD_REDIRECT_URI', default=f'{FRONTEND_URL}/oauth/discord/callback')
 
-# --- OAuth: Telegram Login Widget ---
-TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
-TELEGRAM_BOT_USERNAME = config('TELEGRAM_BOT_USERNAME', default='')
 
 STATIC_URL = 'static/'
 

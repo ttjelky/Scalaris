@@ -14,7 +14,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie
-from .models import Block, Report, TelegramLinkCode, User
+from .models import Block, Report, User
 from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
@@ -308,35 +308,3 @@ class DiscordUnlinkView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class TelegramLinkStartView(APIView):
-    """POST — генерує одноразовий код і повертає посилання на бота.
-    Фронтенд відкриває це посилання; юзер тисне /start в Telegram; окремий
-    процес (management command telegram_bot) читає повідомлення бота,
-    знаходить код і прив’язує telegram_id/telegram_username до юзера.
-    Ніякого домену чи Login Widget тут не потрібно.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        if not settings.TELEGRAM_BOT_USERNAME:
-            return Response(
-                {'detail': 'Телеграм ще не налаштований (немає TELEGRAM_BOT_USERNAME).'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        link_code = TelegramLinkCode.generate_for(request.user)
-        return Response({
-            'code': link_code.code,
-            'bot_username': settings.TELEGRAM_BOT_USERNAME,
-            'deep_link': f'https://t.me/{settings.TELEGRAM_BOT_USERNAME}?start={link_code.code}',
-            'expires_in_minutes': TelegramLinkCode.LIFETIME_MINUTES,
-        })
-
-
-class TelegramUnlinkView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def delete(self, request):
-        request.user.telegram_id = None
-        request.user.telegram_username = ''
-        request.user.save(update_fields=['telegram_id', 'telegram_username'])
-        return Response(status=status.HTTP_204_NO_CONTENT)
