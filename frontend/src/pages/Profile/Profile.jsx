@@ -71,9 +71,6 @@ export default function Profile() {
   const [confirmingBlock, setConfirmingBlock] = useState(false);
 
   const [discordUnlinking, setDiscordUnlinking] = useState(false);
-  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
-  const [telegramConnecting, setTelegramConnecting] = useState(false);
-  const [telegramDeepLink, setTelegramDeepLink] = useState(null);
   const [socialError, setSocialError] = useState('');
 
   const onConfirmLogout = async () => {
@@ -157,18 +154,16 @@ export default function Profile() {
   };
 
   const connectDiscord = () => {
-    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
-    if (!clientId) {
-      setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
-      return;
+    try {
+      // Профіль уже має email на нашому боці, тож для прив'язки достатньо 'identify'.
+      redirectToDiscordAuthorize({ scope: 'identify' });
+    } catch (err) {
+      if (err instanceof MissingDiscordClientIdError) {
+        setSocialError('Discord ще не налаштований (немає VITE_DISCORD_CLIENT_ID).');
+      } else {
+        setSocialError('Не вдалося почати підключення Discord. Спробуй ще раз.');
+      }
     }
-    const redirectUri = `${window.location.origin}/oauth/discord/callback`;
-    const url = new URL('https://discord.com/api/oauth2/authorize');
-    url.searchParams.set('client_id', clientId);
-    url.searchParams.set('redirect_uri', redirectUri);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'identify');
-    window.location.href = url.toString();
   };
 
   const disconnectDiscord = async () => {
@@ -183,66 +178,6 @@ export default function Profile() {
       setDiscordUnlinking(false);
     }
   };
-
-  const disconnectTelegram = async () => {
-    setTelegramUnlinking(true);
-    setSocialError('');
-    try {
-      await api.delete('/users/oauth/telegram/unlink/');
-      updateUser({ telegram_username: '' });
-    } catch {
-      setSocialError('Не вдалося відʼєднати Telegram. Спробуй ще раз.');
-    } finally {
-      setTelegramUnlinking(false);
-    }
-  };
-
-  // Telegram: без Login Widget (той вимагає прив'язаний домен через
-  // BotFather /setdomain, що не працює на localhost). Замість цього —
-  // одноразовий код: бекенд його генерує, ми відкриваємо посилання на
-  // бота, юзер тисне /start у Telegram, окремий процес (management command
-  // telegram_bot) підхоплює це і привʼязує акаунт. Поки чекаємо — просто
-  // періодично перепитуємо /users/me/, чи вже зʼявився telegram_username.
-  const connectTelegram = async () => {
-    setTelegramConnecting(true);
-    setSocialError('');
-    try {
-      const { data } = await api.post('/users/oauth/telegram/start/');
-      setTelegramDeepLink(data.deep_link);
-      window.open(data.deep_link, '_blank', 'noopener,noreferrer');
-    } catch {
-      setSocialError('Не вдалося розпочати підключення Telegram. Спробуй ще раз.');
-      setTelegramConnecting(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!telegramConnecting) return undefined;
-
-    const interval = setInterval(async () => {
-      try {
-        const { data } = await api.get('/users/me/');
-        if (data.telegram_username) {
-          updateUser(data);
-          setTelegramConnecting(false);
-          setTelegramDeepLink(null);
-        }
-      } catch {
-        // тимчасовий збій мережі — просто спробуємо ще раз на наступному тіку
-      }
-    }, 2500);
-
-    // Не чекаємо вічно — код все одно згорає за 10 хв на бекенді.
-    const timeout = setTimeout(() => {
-      setTelegramConnecting(false);
-      setTelegramDeepLink(null);
-    }, 10 * 60 * 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [telegramConnecting, updateUser]);
 
   const onToggleBlock = async () => {
     setTogglingBlock(true);

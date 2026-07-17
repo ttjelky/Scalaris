@@ -389,10 +389,21 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
         <ZoomWatcher onZoomChange={setZoom} />
         <Marker position={position} icon={ownIcon} />
 
-        {gathering && (
-          <>
-            {roadRoute && (
-              <Polyline positions={roadRoute} pathOptions={{ className: styles.routeLine }} />
+      {nearbyUsers.map((person) => {
+        const isAccepted = acceptedIds.includes(person.id);
+        return (
+          <Marker
+            key={person.id}
+            position={[person.latitude, person.longitude]}
+            icon={isAccepted ? acceptedPersonIcon : personIcon}
+            eventHandlers={{
+              click: () => navigate(`/profile/${person.id}`),
+            }}
+          >
+            {showLabels && (
+              <Tooltip permanent direction="top" offset={[0, -12]} className="map-user-label">
+                {person.username}
+              </Tooltip>
             )}
             <Marker position={gathering.point} icon={gatheringIcon}>
               <Tooltip permanent direction="top" offset={[0, -16]} className="map-gathering-label">

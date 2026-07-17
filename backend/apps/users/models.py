@@ -1,5 +1,3 @@
-import secrets
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
@@ -11,11 +9,7 @@ class User(AbstractUser):
     bio = models.CharField(max_length=280, blank=True)
     phone = models.CharField(max_length=32, blank=True, default='')
     is_visible_on_map = models.BooleanField(default=True)
-
-    # OAuth-прив'язки до соцмереж. id зберігаємо як CharField (не int) —
-    # і Discord, і Telegram віддають ID як великі числа/рядки, і в обох
-    # платформ це "чужий" зовнішній ідентифікатор, не наш internal PK.
-    discord_id = models.CharField(max_length=32, blank=True, null=True, unique=True)
+    discord_id = models.CharField(max_length=32, unique=True, blank=True, null=True)
     discord_username = models.CharField(max_length=64, blank=True)
 
     telegram_id = models.CharField(max_length=32, blank=True, null=True, unique=True)

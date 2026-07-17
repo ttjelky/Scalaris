@@ -96,6 +96,7 @@
 .clusterAccepted {
   border: 3px solid var(--color-accent, #c6ff3d);
   box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
+  cursor: pointer;
 }
 
 /* Popup list shown when a cluster marker is clicked, enumerating everyone

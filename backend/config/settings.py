@@ -172,16 +172,11 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+FRONTEND_URL = config('FRONTEND_URL', default='https://localhost:5174')
 
-# --- OAuth: Discord ---
 DISCORD_CLIENT_ID = config('DISCORD_CLIENT_ID', default='')
 DISCORD_CLIENT_SECRET = config('DISCORD_CLIENT_SECRET', default='')
-DISCORD_REDIRECT_URI = config('DISCORD_REDIRECT_URI', default=f'{FRONTEND_URL}/oauth/discord/callback')
-
-# --- OAuth: Telegram Login Widget ---
-TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
-TELEGRAM_BOT_USERNAME = config('TELEGRAM_BOT_USERNAME', default='')
+DISCORD_REDIRECT_URI = config('DISCORD_REDIRECT_URI', default='')
 
 STATIC_URL = 'static/'
 

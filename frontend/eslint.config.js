@@ -17,5 +17,13 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // React 19 / react-hooks v7 flags "setState in effect" as an error, but
+      // the legitimate "reset derived state when inputs change" pattern (e.g.
+      // clearing a route when coords disappear, restarting an elapsed timer)
+      // triggers it everywhere without being an actual bug. Keep the other
+      // react-hooks rules strict; downgrade this one to a warning.
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])

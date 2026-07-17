@@ -28,10 +28,10 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'avatar', 'bio', 'phone', 'is_visible_on_map',
-            'discord_username', 'telegram_username',
+            'id', 'username', 'email', 'avatar', 'bio', 'is_visible_on_map',
+            'discord_username',
         ]
-        read_only_fields = ['id', 'discord_username', 'telegram_username']
+        read_only_fields = ['id', 'discord_username']
 
 
 class UserPublicSerializer(serializers.ModelSerializer):

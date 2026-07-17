@@ -38,6 +38,13 @@ function App() {
           <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
         </Route>
 
+        {/* Колбек Discord OAuth не гейтиться жодним з гвардів: сюди
+            повертається і анонімний юзер (вхід/реєстрація через кнопку
+            на Login/Register), і вже залогінений (прив'язка з профілю).
+            Сам компонент дивиться на isAuthenticated і сам вирішує, який
+            запит зробити — див. DiscordCallback.jsx. */}
+        <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
