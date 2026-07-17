@@ -28,12 +28,19 @@ const ICONS = {
       <path d="M10 15.5C10.4 16.2 11.1 16.7 12 16.7C12.9 16.7 13.6 16.2 14 15.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   ),
+  lock: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="11" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M8.5 11V8C8.5 5.79086 10.2909 4 12.5 4C14.5544 4 16.2478 5.55089 16.4767 7.54415" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="15.3" r="1.3" fill="currentColor" />
+    </svg>
+  ),
 };
 
 const ITEMS = [
   { key: 'home', to: '/home', label: 'Головна', icon: 'home' },
   { key: 'profile', to: '/profile', label: 'Профіль', icon: 'user' },
-  { key: 'blocked', label: 'Заблоковані користувачі', icon: 'bell', disabled: true, badge: 'Скоро' },
+  { key: 'blocked', to: '/blocked-users', label: 'Заблоковані користувачі', icon: 'lock' },
   { key: 'notifications', label: 'Сповіщення', icon: 'bell', disabled: true, badge: 'Скоро' },
 ];
 
