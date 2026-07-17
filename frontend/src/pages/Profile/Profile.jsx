@@ -3,7 +3,43 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar/Navbar';
+import FriendsList from '../../components/FriendsList/FriendsList';
+import FriendActionButton from '../../components/FriendActionButton/FriendActionButton';
 import styles from './Profile.module.css';
+
+function DiscordIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M20.3 5.4A18.3 18.3 0 0 0 15.9 4c-.2.4-.4.9-.6 1.3a17 17 0 0 0-6.6 0A9 9 0 0 0 8.1 4a18.3 18.3 0 0 0-4.4 1.4C1 10.1.3 14.6.6 19.1a18.4 18.4 0 0 0 5.6 2.9c.4-.6.8-1.3 1.2-2a12 12 0 0 1-1.9-.9l.5-.4a13 13 0 0 0 11 0l.5.4c-.6.4-1.3.7-1.9.9.4.7.8 1.4 1.2 2a18.3 18.3 0 0 0 5.6-2.9c.4-5.2-.9-9.6-3.1-13.7ZM8.7 16.4c-1 0-1.9-1-1.9-2.2s.8-2.2 1.9-2.2 1.9 1 1.9 2.2-.9 2.2-1.9 2.2Zm6.6 0c-1 0-1.9-1-1.9-2.2s.8-2.2 1.9-2.2 1.9 1 1.9 2.2-.8 2.2-1.9 2.2Z" />
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.5 3.9 3.6 10.8c-1.2.5-1.2 1.2-.2 1.5l4.6 1.4 1.7 5.4c.2.6.4.8.8.8.4 0 .6-.2.8-.4l2.2-2.1 4.6 3.4c.8.5 1.4.2 1.6-.8l3-14.2c.3-1.2-.4-1.7-1.2-1.9ZM8.9 13.4l9.3-5.9c.4-.3.8-.1.5.2l-7.6 6.9-.3 3.1-1.6-4.3Z" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.7a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.5 2.7.6a2 2 0 0 1 1.7 2Z" />
+    </svg>
+  );
+}
 
 export default function Profile() {
   const { id } = useParams();
@@ -20,8 +56,10 @@ export default function Profile() {
 
   const [editing, setEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState('');
+  const [phoneDraft, setPhoneDraft] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarError, setAvatarError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -61,7 +99,9 @@ export default function Profile() {
         if (cancelled) return;
         setProfile(data);
         setBioDraft(data.bio || '');
+        setPhoneDraft(data.phone || '');
         setBlocked(Boolean(data.is_blocked));
+        setAvatarError(false);
       })
       .catch(() => {
         if (!cancelled) setError('Не вдалося завантажити профіль.');
@@ -80,6 +120,7 @@ export default function Profile() {
     if (!file) return;
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+    setAvatarError(false);
   };
 
   const onSave = async () => {
@@ -88,6 +129,7 @@ export default function Profile() {
     try {
       const formData = new FormData();
       formData.append('bio', bioDraft);
+      formData.append('phone', phoneDraft);
       if (avatarFile) formData.append('avatar', avatarFile);
 
       // Let the browser set the multipart Content-Type (with boundary) —
@@ -108,6 +150,7 @@ export default function Profile() {
   const onCancelEdit = () => {
     setEditing(false);
     setBioDraft(profile?.bio || '');
+    setPhoneDraft(profile?.phone || '');
     setAvatarFile(null);
     setAvatarPreview(null);
     setSaveError('');
@@ -246,6 +289,7 @@ export default function Profile() {
   }
 
   const displayAvatar = avatarPreview || profile.avatar;
+  const showAvatarImg = Boolean(displayAvatar) && !avatarError;
 
   return (
     <div className={styles.screen}>
@@ -257,18 +301,18 @@ export default function Profile() {
             Назад
           </button>
         </div>
-        {isOwnProfile && !editing && (
-          <button className={styles.editButton} onClick={() => setEditing(true)} type="button">
-            Редагувати
-          </button>
-        )}
       </header>
 
       <div className={styles.content}>
         <div className={styles.avatarBlock}>
           <div className={styles.avatarWrap}>
-            {displayAvatar ? (
-              <img src={displayAvatar} alt={profile.username} className={styles.avatarImg} />
+            {showAvatarImg ? (
+              <img
+                src={displayAvatar}
+                alt={profile.username}
+                className={styles.avatarImg}
+                onError={() => setAvatarError(true)}
+              />
             ) : (
               <span className={styles.avatarFallback}>{profile.username?.slice(0, 1).toUpperCase()}</span>
             )}
@@ -280,6 +324,11 @@ export default function Profile() {
             )}
           </div>
           <h1 className={styles.username}>{profile.username}</h1>
+          {isOwnProfile && !editing && (
+            <button className={styles.editButton} onClick={() => setEditing(true)} type="button">
+              Редагувати профіль
+            </button>
+          )}
         </div>
 
         {editing ? (
@@ -302,6 +351,19 @@ export default function Profile() {
               <span className={styles.charCount}>{bioDraft.length}/280</span>
             </label>
 
+            <label className={styles.field}>
+              <span className={styles.label}>Номер телефону</span>
+              <input
+                type="tel"
+                className={styles.textInput}
+                value={phoneDraft}
+                onChange={(e) => setPhoneDraft(e.target.value)}
+                placeholder="+380 xx xxx xx xx"
+                autoComplete="tel"
+              />
+              <span className={styles.fieldHint}>Буде видно іншим користувачам у вашому профілі.</span>
+            </label>
+
             <div className={styles.editActions}>
               <button className={styles.cancelButton} onClick={onCancelEdit} type="button" disabled={saving}>
                 Скасувати
@@ -317,6 +379,26 @@ export default function Profile() {
           </p>
         )}
 
+        {!editing && (profile.phone || isOwnProfile) && (
+          <div className={styles.phoneRow}>
+            {profile.phone ? (
+              <>
+                <span className={styles.phoneIcon} aria-hidden="true">
+                  <PhoneIcon />
+                </span>
+                <span className={styles.phoneValue}>{profile.phone}</span>
+              </>
+            ) : (
+              isOwnProfile && (
+                <button className={styles.phoneAddButton} onClick={() => setEditing(true)} type="button">
+                  <PhoneIcon />
+                  Додати номер телефону
+                </button>
+              )
+            )}
+          </div>
+        )}
+
         {isOwnProfile && !editing && (
           <div className={styles.socialSection}>
             <span className={styles.label}>Соцмережі</span>
@@ -327,67 +409,79 @@ export default function Profile() {
               </p>
             )}
 
-            <div className={styles.socialRow}>
-              <span className={styles.socialName}>Discord</span>
+            <div className={styles.socialChipsRow}>
               {profile.discord_username ? (
-                <div className={styles.socialConnected}>
-                  <span className={styles.socialHandle}>{profile.discord_username}</span>
+                <span className={`${styles.socialChip} ${styles.socialChipConnected}`}>
+                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconDiscord}`} aria-hidden="true">
+                    <DiscordIcon />
+                  </span>
+                  <span className={styles.socialChipLabel}>{profile.discord_username}</span>
                   <button
-                    className={styles.socialUnlink}
+                    className={styles.socialChipUnlink}
                     onClick={disconnectDiscord}
                     type="button"
                     disabled={discordUnlinking}
+                    aria-label="Відʼєднати Discord"
                   >
-                    {discordUnlinking ? '…' : 'Відʼєднати'}
+                    {discordUnlinking ? '…' : '×'}
                   </button>
-                </div>
+                </span>
               ) : (
-                <button className={styles.socialConnect} onClick={connectDiscord} type="button">
-                  Підключити
+                <button className={styles.socialChip} onClick={connectDiscord} type="button">
+                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconDiscord}`} aria-hidden="true">
+                    <DiscordIcon />
+                  </span>
+                  <span className={styles.socialChipLabel}>Discord</span>
+                </button>
+              )}
+
+              {profile.telegram_username ? (
+                <span className={`${styles.socialChip} ${styles.socialChipConnected}`}>
+                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
+                    <TelegramIcon />
+                  </span>
+                  <span className={styles.socialChipLabel}>@{profile.telegram_username}</span>
+                  <button
+                    className={styles.socialChipUnlink}
+                    onClick={disconnectTelegram}
+                    type="button"
+                    disabled={telegramUnlinking}
+                    aria-label="Відʼєднати Telegram"
+                  >
+                    {telegramUnlinking ? '…' : '×'}
+                  </button>
+                </span>
+              ) : telegramConnecting ? (
+                <span className={`${styles.socialChip} ${styles.socialChipConnected}`}>
+                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
+                    <TelegramIcon />
+                  </span>
+                  <span className={styles.socialChipLabel}>Очікуємо…</span>
+                </span>
+              ) : (
+                <button className={styles.socialChip} onClick={connectTelegram} type="button">
+                  <span className={`${styles.socialChipIcon} ${styles.socialChipIconTelegram}`} aria-hidden="true">
+                    <TelegramIcon />
+                  </span>
+                  <span className={styles.socialChipLabel}>Telegram</span>
                 </button>
               )}
             </div>
 
-            <div className={styles.socialRow}>
-              <span className={styles.socialName}>Telegram</span>
-              {profile.telegram_username ? (
-                <div className={styles.socialConnected}>
-                  <span className={styles.socialHandle}>@{profile.telegram_username}</span>
-                  <button
-                    className={styles.socialUnlink}
-                    onClick={disconnectTelegram}
-                    type="button"
-                    disabled={telegramUnlinking}
-                  >
-                    {telegramUnlinking ? '…' : 'Відʼєднати'}
-                  </button>
-                </div>
-              ) : (
-                <div className={styles.socialConnected}>
-                  {telegramConnecting ? (
-                    <>
-                      <span className={styles.socialHint}>Очікуємо підтвердження в Telegram…</span>
-                      {telegramDeepLink && (
-                        <a
-                          className={styles.socialConnect}
-                          href={telegramDeepLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Відкрити бота ще раз
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <button className={styles.socialConnect} onClick={connectTelegram} type="button">
-                      Підключити
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+            {telegramConnecting && telegramDeepLink && (
+              <a
+                className={styles.socialHint}
+                href={telegramDeepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Не відкрилось автоматично? Відкрити бота ще раз →
+              </a>
+            )}
           </div>
         )}
+
+        {isOwnProfile && !editing && <FriendsList />}
 
         {isOwnProfile && !editing && (
           <button
@@ -395,8 +489,19 @@ export default function Profile() {
             onClick={() => setConfirmingLogout(true)}
             type="button"
           >
+            <span className={styles.logoutIcon} aria-hidden="true">
+              <LogoutIcon />
+            </span>
             Вийти з акаунту
           </button>
+        )}
+
+        {!isOwnProfile && !editing && !blocked && (
+          <FriendActionButton
+            userId={Number(id)}
+            friendshipStatus={profile.friendship_status}
+            friendRequestId={profile.friend_request_id}
+          />
         )}
 
         {!isOwnProfile && (

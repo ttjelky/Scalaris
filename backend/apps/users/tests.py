@@ -106,3 +106,57 @@ class AuthIntegrationTests(TestCase):
             'password_confirm': 'NewPass123!',
         })
         self.assertEqual(response.status_code, 400)
+
+
+class FriendSystemTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='alice',
+            email='alice@example.com',
+            password='TestPass123!',
+        )
+        self.other = User.objects.create_user(
+            username='bob',
+            email='bob@example.com',
+            password='TestPass123!',
+        )
+        login = self.client.post('/api/users/login/', {
+            'username': 'alice',
+            'password': 'TestPass123!',
+        })
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {login.data["access"]}')
+
+    def test_send_and_accept_friend_request(self):
+        response = self.client.post(f'/api/users/{self.other.pk}/friend-request/')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['friendship_status'], 'request_sent')
+
+        self.client.credentials()  # clear auth
+        login = self.client.post('/api/users/login/', {
+            'username': 'bob',
+            'password': 'TestPass123!',
+        })
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {login.data["access"]}')
+
+        profile = self.client.get(f'/api/users/{self.user.pk}/')
+        self.assertEqual(profile.data['friendship_status'], 'request_received')
+        request_id = profile.data['friend_request_id']
+
+        response = self.client.post(f'/api/users/friend-requests/{request_id}/accept/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.user.friends.filter(pk=self.other.pk).exists())
+
+        friends = self.client.get('/api/users/me/friends/')
+        self.assertEqual(friends.status_code, 200)
+        usernames = [u['username'] for u in friends.data['results']]
+        self.assertIn('alice', usernames)
+
+    def test_auto_accept_when_both_users_send_requests(self):
+        from .models import FriendRequest
+
+        FriendRequest.objects.create(from_user=self.other, to_user=self.user)
+        response = self.client.post(f'/api/users/{self.other.pk}/friend-request/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['friendship_status'], 'friends')
+        self.assertTrue(self.user.friends.filter(pk=self.other.pk).exists())

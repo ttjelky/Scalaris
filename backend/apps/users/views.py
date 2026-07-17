@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import requests
 from django.conf import settings
+from django.db.models import Q
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -14,8 +15,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie
-from .models import Block, Report, TelegramLinkCode, User
+from .models import Block, FriendRequest, Report, TelegramLinkCode, User
 from .serializers import (
+    FriendRequestSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
     RegisterSerializer,
@@ -340,3 +342,209 @@ class TelegramUnlinkView(APIView):
         request.user.telegram_username = ''
         request.user.save(update_fields=['telegram_id', 'telegram_username'])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ==========================================
+#          СИСТЕМА ДРУЗІВ (Нові Views)
+# ==========================================
+
+class SendFriendRequestView(APIView):
+    """POST /api/users/<pk>/friend-request/ — надіслати запит у друзі."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна надіслати запит у друзі самому собі.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        target = get_object_or_404(User, pk=pk)
+
+        # Перевірка на блокування
+        if Block.objects.filter(blocker=target, blocked=request.user).exists():
+            return Response(
+                {'detail': 'Ви не можете надіслати запит цьому користувачу.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if Block.objects.filter(blocker=request.user, blocked=target).exists():
+            return Response(
+                {'detail': 'Ви заблокували цього користувача. Розблокуйте його перед тим як додавати у друзі.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Перевірка чи не є вони вже друзями
+        if request.user.friends.filter(pk=pk).exists():
+            return Response(
+                {'detail': 'Ви вже друзі.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Якщо інший користувач уже надіслав запит — приймаємо автоматично
+        incoming = FriendRequest.objects.filter(from_user=target, to_user=request.user).first()
+        if incoming:
+            request.user.friends.add(target)
+            incoming.delete()
+            FriendRequest.objects.filter(from_user=request.user, to_user=target).delete()
+            return Response(
+                {'detail': 'Запит прийнято!', 'friendship_status': 'friends'},
+                status=status.HTTP_200_OK,
+            )
+
+        friend_request, created = FriendRequest.objects.get_or_create(
+            from_user=request.user,
+            to_user=target,
+        )
+        payload = {
+            'detail': 'Запит надіслано!' if created else 'Запит уже надіслано.',
+            'friend_request_id': friend_request.id,
+            'friendship_status': 'request_sent',
+        }
+        return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class AcceptFriendRequestView(APIView):
+    """POST /api/friend-requests/<pk>/accept/ — прийняти запит (pk - ID запиту)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        friend_request = get_object_or_404(FriendRequest, pk=pk, to_user=request.user)
+        
+        # Додаємо один одного в друзі
+        request.user.friends.add(friend_request.from_user)
+        
+        # Видаляємо виконаний запит
+        friend_request.delete()
+        
+        # Видаляємо зустрічний запит, якщо такий випадково є
+        FriendRequest.objects.filter(from_user=request.user, to_user=friend_request.from_user).delete()
+        
+        return Response({'detail': 'Запит прийнято!'}, status=status.HTTP_200_OK)
+
+
+class RejectFriendRequestView(APIView):
+    """DELETE /api/friend-requests/<pk>/reject/ — відхилити/скасувати запит (pk - ID запиту)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        # Дозволяємо видалити запит як тому, хто отримав, так і тому, хто надіслав
+        friend_request = get_object_or_404(
+            FriendRequest, 
+            Q(to_user=request.user) | Q(from_user=request.user),
+            pk=pk
+        )
+        friend_request.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RemoveFriendView(APIView):
+    """DELETE /api/users/<pk>/friend/ — видалити з друзів (pk - ID юзера)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        target = get_object_or_404(User, pk=pk)
+        request.user.friends.remove(target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FriendsListView(generics.ListAPIView):
+    """GET /api/me/friends/ — мої друзі."""
+    serializer_class = UserPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.friends.all()
+
+
+class SentFriendRequestsView(generics.ListAPIView):
+    """GET /api/me/friend-requests/sent/ — надіслані мною запити."""
+    serializer_class = FriendRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.sent_friend_requests.select_related('to_user').all()
+
+
+class ReceivedFriendRequestsView(generics.ListAPIView):
+    """GET /api/me/friend-requests/received/ — вхідні запити."""
+    serializer_class = FriendRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.received_friend_requests.select_related('from_user').all()
+
+
+# ==========================================
+#          СИСТЕМА СПОВІЩЕНЬ
+# ==========================================
+
+class NotificationsView(APIView):
+    """GET /api/users/me/notifications/ — об'єднаний список сповіщень:
+    вхідні запити у друзі + запрошення на активності (status=pending).
+    Повертає єдиний формат: { id, type, from_user, created_at, activity?, detail? }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.activities.models import Invitation
+
+        notifications = []
+
+        # --- Friend requests ---
+        friend_requests = FriendRequest.objects.filter(
+            to_user=request.user
+        ).select_related('from_user').order_by('-created_at')
+
+        for fr in friend_requests:
+            notifications.append({
+                'id': f'friend_request_{fr.id}',
+                'type': 'friend_request',
+                'from_user': UserPublicSerializer(fr.from_user, context={'request': request}).data,
+                'created_at': fr.created_at.isoformat(),
+                'activity': None,
+            })
+
+        # --- Activity invitations ---
+        invitations = Invitation.objects.filter(
+            to_user=request.user,
+            status=Invitation.Status.PENDING,
+        ).select_related('from_user', 'activity', 'activity__creator').order_by('-created_at')
+
+        for inv in invitations:
+            notifications.append({
+                'id': f'invitation_{inv.id}',
+                'type': 'activity_invitation',
+                'from_user': UserPublicSerializer(inv.from_user, context={'request': request}).data,
+                'created_at': inv.created_at.isoformat(),
+                'activity': {
+                    'id': inv.activity.id,
+                    'title': inv.activity.title,
+                    'category': inv.activity.category,
+                    'started_at': inv.activity.started_at.isoformat(),
+                    'latitude': inv.activity.point.y,
+                    'longitude': inv.activity.point.x,
+                },
+            })
+
+        # Sort all notifications by created_at descending
+        notifications.sort(key=lambda n: n['created_at'], reverse=True)
+
+        return Response(notifications)
+
+
+class NotificationsCountView(APIView):
+    """GET /api/users/me/notifications/count/ — кількість непрочитаних сповіщень."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.activities.models import Invitation
+
+        friend_request_count = FriendRequest.objects.filter(to_user=request.user).count()
+        invitation_count = Invitation.objects.filter(
+            to_user=request.user,
+            status=Invitation.Status.PENDING,
+        ).count()
+
+        return Response({
+            'count': friend_request_count + invitation_count,
+        })

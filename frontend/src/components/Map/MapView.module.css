@@ -1,3 +1,9 @@
+.mapWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .map {
   width: 100%;
   height: 100%;
@@ -5,7 +11,8 @@
 
 /* Leaflet gives div-icons a default white box + border — strip that so
    only our custom dot styling below is visible. */
-:global(.leaflet-dot-icon) {
+:global(.leaflet-dot-icon),
+:global(.leaflet-avatar-icon) {
   background: transparent;
   border: none;
 }
@@ -19,24 +26,307 @@
   box-shadow: 0 0 0 5px rgba(198, 255, 61, 0.3);
 }
 
-.personMarker {
-  width: 12px;
-  height: 12px;
+/* Nearby person marker — shows their avatar photo in a round frame.
+   Sizing comes from the divIcon's iconSize (PERSON_AVATAR_SIZE /
+   ACCEPTED_AVATAR_SIZE in MapView.jsx), so this fills 100% of that box. */
+.personAvatarWrap {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-ink, #0b0b0c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Nearby person who accepted the current "Збір" invite — accent ring so
+   they visually stand apart from plain nearby users. */
+.personAvatarAccepted {
+  border: 3px solid var(--color-accent, #c6ff3d);
+  box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
+}
+
+.personAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Shown when a person has no avatar set, or their photo fails to load
+   (see the inline onerror in MapView.jsx's makePersonIcon). */
+.personAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+/* Cluster marker — shown instead of individual avatars when several people
+   are close enough on screen to overlap (see CLUSTER_PIXEL_RADIUS in
+   MapView.jsx). Sizing comes from the divIcon's iconSize (CLUSTER_SIZE). */
+.clusterMarker {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: var(--color-ink, #0b0b0c);
   border: 2px solid #ffffff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.8rem;
 }
 
-/* Nearby person who accepted the current "Збір" invite — bigger dot with
-   an accent ring so it visually stands apart from plain nearby users. */
-.personMarkerAccepted {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--color-ink, #0b0b0c);
+/* Cluster containing at least one person who accepted the current "Збір"
+   invite — same accent-ring treatment as a single accepted avatar. */
+.clusterAccepted {
   border: 3px solid var(--color-accent, #c6ff3d);
   box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
+}
+
+/* Popup list shown when a cluster marker is clicked, enumerating everyone
+   folded into that cluster. Content lives inside React's tree (unlike the
+   divIcon HTML strings above), so these can be normal CSS-module classes. */
+.clusterPopupList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.clusterPopupItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  margin: 0;
+  border-radius: var(--radius-md, 8px);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.clusterPopupItem:hover,
+.clusterPopupItem:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.clusterPopupAvatarWrap {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-ink, #0b0b0c);
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clusterPopupAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.clusterPopupAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.clusterPopupName {
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--color-bg, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Leaflet's default popup chrome is a light box meant for a light map —
+   restyle it to match the dark pill treatment used elsewhere on the map.
+   Popup content is inside React's tree, but the wrapper/tip/close-button
+   chrome around it is rendered by Leaflet itself, so those stay global. */
+/* Mini profile card opened by tapping a name in a cluster popup. Rendered
+   as a sibling of the map (see .mapWrapper in MapView.jsx), not inside
+   Leaflet's tree, so a plain fixed-position overlay works here. */
+.profileCardBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  animation: profileBackdropFadeIn 0.15s ease-out;
+}
+
+.profileCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 200px;
+  padding: 22px 18px 18px;
+  background: var(--color-bg, #ffffff);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25);
+  animation: profileCardPopIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes profileBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profileCardPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.profileCardAvatarWrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eceff1;
+  border: 2px solid var(--color-ink, #0b0b0c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileCardAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profileCardAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink, #0b0b0c);
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+}
+
+.profileCardName {
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--color-ink, #0b0b0c);
+  text-align: center;
+  word-break: break-word;
+}
+
+.profileCardButton {
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.profileCardButton:hover,
+.profileCardButton:focus-visible {
+  filter: brightness(1.08);
+}
+
+:global(.leaflet-popup-content-wrapper) {
+  background: var(--color-ink, #0b0b0c);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
+  transform-origin: bottom center;
+  animation: popupPopIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:global(.leaflet-popup-content) {
+  margin: 10px 12px;
+}
+
+:global(.leaflet-popup-tip) {
+  background: var(--color-ink, #0b0b0c);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  animation: popupTipFadeIn 0.2s ease-out;
+}
+
+/* Entrance animation shared by the cluster popup wrapper above. Kept as a
+   scale+rise rather than a plain fade so the popup visually "pops out of"
+   the marker it belongs to. Tip only fades (not scales) since it already
+   carries Leaflet's own rotate(45deg) transform, and animating scale on
+   top of that would fight the rotation. */
+@keyframes popupPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes popupTipFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* The gathering point itself. Bigger than any person dot, with a soft
@@ -74,6 +364,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gatheringMarker::after {
+    animation: none;
+  }
+
+  :global(.leaflet-popup-content-wrapper),
+  :global(.leaflet-popup-tip),
+  .profileCardBackdrop,
+  .profileCard {
     animation: none;
   }
 }

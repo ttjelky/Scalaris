@@ -1,7 +1,8 @@
 from django.contrib.auth.password_validation import validate_password
+from django.db.models import Q
 from rest_framework import serializers
 
-from .models import Block, Report, User
+from .models import Block, FriendRequest, Report, User
 
 
 class RelativeImageField(serializers.ImageField):
@@ -27,7 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'avatar', 'bio', 'is_visible_on_map',
+            'id', 'username', 'email', 'avatar', 'bio', 'phone', 'is_visible_on_map',
             'discord_username', 'telegram_username',
         ]
         read_only_fields = ['id', 'discord_username', 'telegram_username']
@@ -36,16 +37,42 @@ class UserSerializer(serializers.ModelSerializer):
 class UserPublicSerializer(serializers.ModelSerializer):
     avatar = RelativeImageField(read_only=True)
     is_blocked = serializers.SerializerMethodField()
+    friendship_status = serializers.SerializerMethodField()
+    friend_request_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar', 'bio', 'is_blocked']
+        fields = [
+            'id', 'username', 'avatar', 'bio', 'phone', 'is_blocked',
+            'friendship_status', 'friend_request_id',
+        ]
 
     def get_is_blocked(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
         return Block.objects.filter(blocker=request.user, blocked=obj).exists()
+
+    def get_friendship_status(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated or request.user.pk == obj.pk:
+            return 'none'
+        if request.user.friends.filter(pk=obj.pk).exists():
+            return 'friends'
+        if FriendRequest.objects.filter(from_user=request.user, to_user=obj).exists():
+            return 'request_sent'
+        if FriendRequest.objects.filter(from_user=obj, to_user=request.user).exists():
+            return 'request_received'
+        return 'none'
+
+    def get_friend_request_id(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated or request.user.pk == obj.pk:
+            return None
+        friend_request = FriendRequest.objects.filter(
+            Q(from_user=request.user, to_user=obj) | Q(from_user=obj, to_user=request.user),
+        ).first()
+        return friend_request.id if friend_request else None
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -73,6 +100,16 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data['email'],
             password=validated_data['password'],
         )
+    
+class FriendRequestSerializer(serializers.ModelSerializer):
+    # read_only=True гарантує, що ми використовуємо ці серіалізатори лише для читання даних,
+    # а не для їх створення через API
+    from_user = UserPublicSerializer(read_only=True)
+    to_user = UserPublicSerializer(read_only=True)
+
+    class Meta:
+        model = FriendRequest
+        fields = ['id', 'from_user', 'to_user', 'created_at']
 
 
 class PasswordResetSerializer(serializers.Serializer):

@@ -3,11 +3,13 @@ import secrets
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 
 class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     bio = models.CharField(max_length=280, blank=True)
+    phone = models.CharField(max_length=32, blank=True, default='')
     is_visible_on_map = models.BooleanField(default=True)
 
     # OAuth-прив'язки до соцмереж. id зберігаємо як CharField (не int) —
@@ -18,6 +20,8 @@ class User(AbstractUser):
 
     telegram_id = models.CharField(max_length=32, blank=True, null=True, unique=True)
     telegram_username = models.CharField(max_length=64, blank=True)
+
+    friends = models.ManyToManyField('self', blank=True, symmetrical=True)
 
     def __str__(self):
         return self.username
@@ -81,3 +85,20 @@ class TelegramLinkCode(models.Model):
 
     def __str__(self):
         return f'{self.code} -> {self.user}'
+    
+class FriendRequest(models.Model):
+    """Модель для відстеження надісланих та отриманих запитів у друзі."""
+    from_user = models.ForeignKey(User, related_name='sent_friend_requests', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(User, related_name='received_friend_requests', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('from_user', 'to_user')
+
+    def clean(self):
+        # Забороняємо надсилати запит самому собі
+        if self.from_user == self.to_user:
+            raise ValidationError("Не можна надіслати запит у друзі самому собі.")
+
+    def __str__(self):
+        return f'{self.from_user} -> {self.to_user}'
