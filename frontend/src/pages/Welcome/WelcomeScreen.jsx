@@ -12,7 +12,7 @@ import slide4 from '../../assets/welcome/street-4.webp';
 
 const DEFAULT_SLIDES = [slide1, slide2, slide3, slide4];
 
-export default function WelcomeScreen({ images, backgroundImage, activeNearby = 128 }) {
+export default function WelcomeScreen({ images, backgroundImage }) {
   useDocumentBackground('#0e0e10');
 
   // Back-compat: a single `backgroundImage` still works (wrapped as a
@@ -51,11 +51,6 @@ export default function WelcomeScreen({ images, backgroundImage, activeNearby = 
       </header>
 
       <div className={styles.content}>
-        <div className={styles.liveBadge}>
-          <span className={styles.pulseDot} aria-hidden="true" />
-          <span>{activeNearby} активні поруч</span>
-        </div>
-
         <h1 className={styles.title}>Scalaris</h1>
         <p className={styles.subtitle}>
           Час вийти на вулицю!

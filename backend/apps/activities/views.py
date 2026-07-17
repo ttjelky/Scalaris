@@ -192,3 +192,19 @@ class InvitationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(InvitationSerializer(invitation, context={'request': request}).data)
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
+
+@require_GET
+def online_count(request):
+    """Повертає кількість користувачів, які зараз онлайн (оновлювали позицію за останні 5 хв)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    cutoff = timezone.now() - timedelta(minutes=5)
+    count = Location.objects.filter(updated_at__gte=cutoff).count()
+    return JsonResponse({'count': count})
