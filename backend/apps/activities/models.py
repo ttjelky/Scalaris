@@ -29,6 +29,7 @@ class Activity(models.Model):
         HANGOUT = 'hangout', 'Тусовка'
         CROSS = 'cross', 'Крос'
         ZONE = 'zone', 'Ігрова зона'
+        QUEST = 'quest', 'Квест'
 
     class LiveStatus(models.TextChoices):
         PENDING = 'pending', 'Очікує підтверджень'
