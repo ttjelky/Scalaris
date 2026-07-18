@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { parseApiError } from '../../utils/apiErrors';
@@ -17,6 +17,13 @@ export default function PasswordResetConfirm() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const redirectTimer = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    };
+  }, []);
 
   const clearFieldError = (name) =>
     setFieldErrors((prev) => {
@@ -57,7 +64,7 @@ export default function PasswordResetConfirm() {
         password_confirm: passwordConfirm,
       });
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 2000);
+      redirectTimer.current = setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       const { fieldErrors: apiFieldErrors, generalError } = parseApiError(err, {
         fallback: 'Щось пішло не так. Спробуй ще раз.',

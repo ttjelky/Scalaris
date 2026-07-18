@@ -208,7 +208,11 @@ class ActivitySerializer(serializers.ModelSerializer):
                     {"checkpoints_data": "Для кросу потрібно мінімум 2 чекпоїнти."}
                 )
             duration = attrs.get('duration_seconds')
-            if duration is not None and duration < 30:
+            if duration is None:
+                raise serializers.ValidationError(
+                    {"duration_seconds": "Для кросу тривалість обов'язкова."}
+                )
+            if duration < 30:
                 raise serializers.ValidationError(
                     {"duration_seconds": "Мінімальна тривалість — 30 секунд."}
                 )

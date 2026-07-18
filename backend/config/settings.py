@@ -12,11 +12,11 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-sc^@2dwo&cgv4!#9eu&47_g+40()1u821n6ilwm^2e@38@e%7z'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-sc^@2dwo&cgv4!#9eu&47_g+40()1u821n6ilwm^2e@38@e%7z')
 
-DEBUG = True
+DEBUG = config('DEBUG', default='True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -128,12 +128,10 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [(config('REDIS_HOST', default='127.0.0.1'), int(config('REDIS_PORT', default='6379')))],
         },
     },
 }
-
-WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database

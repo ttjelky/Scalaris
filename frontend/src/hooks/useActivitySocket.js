@@ -17,14 +17,14 @@ export default function useActivitySocket(activityId) {
   useEffect(() => {
     if (!activityId) return;
 
-    const token = getAccessToken();
-    if (!token) return;
-
     let reconnectTimer = null;
     let active = true;
 
     function connect() {
       if (!active) return;
+
+      const token = getAccessToken();
+      if (!token) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;

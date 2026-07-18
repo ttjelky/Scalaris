@@ -1,8 +1,16 @@
 import json
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+
+
+def _extract_token(query_string: bytes) -> str:
+    """Extract ``token`` from a raw query-string bytes."""
+    params = parse_qs(query_string.decode())
+    tokens = params.get('token', [])
+    return tokens[0] if tokens else ''
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -15,7 +23,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = None
-        token = self.scope['query_string'].decode().split('token=')[-1].split('&')[0] if b'token=' in self.scope['query_string'] else ''
+        token = _extract_token(self.scope['query_string'])
 
         if not token:
             await self.close(code=4001)
@@ -49,7 +57,10 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except (json.JSONDecodeError, TypeError):
+            return
         msg_type = data.get('type')
 
         if msg_type == 'get_count':
@@ -98,7 +109,7 @@ class ActivityConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.activity_id = self.scope['url_route']['kwargs']['activity_id']
-        token = self.scope['query_string'].decode().split('token=')[-1].split('&')[0] if b'token=' in self.scope['query_string'] else ''
+        token = _extract_token(self.scope['query_string'])
 
         if not token:
             await self.close(code=4001)
@@ -107,8 +118,20 @@ class ActivityConsumer(AsyncWebsocketConsumer):
         try:
             access_token = AccessToken(token)
             self.user_id = access_token['user_id']
+            self.user = await self.get_user(self.user_id)
         except (InvalidToken, TokenError, KeyError):
             await self.close(code=4001)
+            return
+
+        if not self.user:
+            await self.close(code=4001)
+            return
+
+        # Only allow creator or participants to connect.
+        # Nonexistent activities are allowed (returns "unknown" state).
+        is_participant = await self._is_participant()
+        if is_participant is False:
+            await self.close(code=4003)
             return
 
         self.group_name = f'activity_{self.activity_id}'
@@ -134,7 +157,10 @@ class ActivityConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except (json.JSONDecodeError, TypeError):
+            return
         msg_type = data.get('type')
 
         if msg_type == 'get_state':
@@ -158,6 +184,37 @@ class ActivityConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'activity_cancelled',
         }))
+
+    @database_sync_to_async
+    def get_user(self, user_id):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        try:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def _is_participant(self):
+        """Return True if the user is the creator or an invited participant.
+
+        Returns ``None`` if the activity does not exist (caller should
+        allow the connection — the consumer sends an "unknown" state).
+        """
+        from apps.activities.models import Activity, Invitation
+
+        try:
+            activity = Activity.objects.get(pk=self.activity_id)
+        except Activity.DoesNotExist:
+            return None
+
+        if activity.creator_id == self.user_id:
+            return True
+
+        return Invitation.objects.filter(
+            activity=activity,
+            to_user_id=self.user_id,
+        ).exists()
 
     @database_sync_to_async
     def get_activity_state(self):
