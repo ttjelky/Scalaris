@@ -229,3 +229,58 @@ def notify_activity_cancelled(activity_id):
             'type': 'activity_cancelled',
         }
     )
+
+
+def notify_zone_deleted(activity_id):
+    """Synchronous helper to broadcast zone deletion to all map viewers."""
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        'zones_broadcast',
+        {
+            'type': 'zone_deleted',
+            'activity_id': activity_id,
+        }
+    )
+
+
+class ZoneBroadcastConsumer(AsyncWebsocketConsumer):
+    """WebSocket for real-time zone map updates (deletions).
+
+    Connects with: ws/zones/?token=<access_token>
+    Joins global group: zones_broadcast
+    Server sends: { "type": "zone_deleted", "activity_id": <int> }
+    """
+
+    async def connect(self):
+        token = self.scope['query_string'].decode().split('token=')[-1].split('&')[0] if b'token=' in self.scope['query_string'] else ''
+
+        if not token:
+            await self.close(code=4001)
+            return
+
+        try:
+            access_token = AccessToken(token)
+            self.user_id = access_token['user_id']
+        except (InvalidToken, TokenError, KeyError):
+            await self.close(code=4001)
+            return
+
+        self.group_name = 'zones_broadcast'
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        pass
+
+    async def zone_deleted(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'zone_deleted',
+            'activity_id': event['activity_id'],
+        }))

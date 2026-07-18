@@ -7,6 +7,7 @@ import { getFriends } from '../../api/friends';
 import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
 import useActivitySocket from '../../hooks/useActivitySocket';
+import useZoneSocket from '../../hooks/useZoneSocket';
 import styles from './Home.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
@@ -159,6 +160,7 @@ export default function Home() {
   const [friendsList, setFriendsList] = useState([]);
   const [hideNonParticipants, setHideNonParticipants] = useState(false);
   const [hiddenZoneIds, setHiddenZoneIds] = useState(new Set());
+  const { deletedZoneIds } = useZoneSocket();
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -295,8 +297,8 @@ export default function Home() {
   };
 
   const visibleZones = useMemo(
-    () => activeZones.filter((z) => !hiddenZoneIds.has(z.id)),
-    [activeZones, hiddenZoneIds]
+    () => activeZones.filter((z) => !hiddenZoneIds.has(z.id) && !deletedZoneIds.has(z.id)),
+    [activeZones, hiddenZoneIds, deletedZoneIds]
   );
 
   const handleZoneClick = (zone) => {
@@ -304,10 +306,32 @@ export default function Home() {
     setSheetState('expanded');
   };
 
-  const handleHideZone = (zone) => {
+  const handleHideZone = async (zone) => {
     setHiddenZoneIds((prev) => new Set([...prev, zone.id]));
     setSelectedZone(null);
     setSheetState('collapsed');
+    try {
+      await api.post(`/activities/${zone.id}/hide/`);
+    } catch {
+      // ignore
+    }
+  };
+
+  const isZoneCreator = selectedZone && user && selectedZone.creator?.id === user.id;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteZone = async (zone) => {
+    setDeleting(true);
+    setActiveZones((prev) => prev.filter((z) => z.id !== zone.id));
+    setSelectedZone(null);
+    setSheetState('collapsed');
+    try {
+      await api.delete(`/activities/${zone.id}/`);
+    } catch {
+      // ignore
+    } finally {
+      setDeleting(false);
+    }
   };
   // ------------------------------------------------------------------------
 
@@ -409,7 +433,16 @@ export default function Home() {
               radius: 5,
             },
           });
-          setActiveZones(data);
+          const zones = Array.isArray(data) ? data : (data.zones || []);
+          const serverHiddenIds = data.hidden_ids || [];
+          setActiveZones(zones);
+          if (serverHiddenIds.length > 0) {
+            setHiddenZoneIds((prev) => {
+              const next = new Set(prev);
+              serverHiddenIds.forEach((id) => next.add(id));
+              return next;
+            });
+          }
         } catch {
           setActiveZones([]);
         }
@@ -540,6 +573,21 @@ export default function Home() {
       setOngoingActivity(null);
       setHideNonParticipants(false);
       setSheetState('collapsed');
+    }
+  };
+
+  const handleDeleteActivity = async () => {
+    if (!ongoingActivity?.id || leaving) return;
+    setLeaving(true);
+    setOngoingActivity(null);
+    setHideNonParticipants(false);
+    setSheetState('collapsed');
+    try {
+      await api.delete(`/activities/${ongoingActivity.id}/`);
+    } catch {
+      // ignore
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -892,12 +940,6 @@ export default function Home() {
                   <h1 className={styles.heroTitle}>{selectedZone.title}</h1>
                   <p className={styles.heroDistance}>Радіус: {selectedZone.radius || 80} м</p>
                 </div>
-                <div className={styles.heroBadge}>
-                  <span className={styles.heroBadgeValue}>
-                    {selectedZone.participants?.length || 0}
-                  </span>
-                  <span className={styles.heroBadgeLabel}>учасників</span>
-                </div>
               </>
             ) : (
               <>
@@ -1006,14 +1048,25 @@ export default function Home() {
               )}
             </div>
 
-            <button
-              type="button"
-              className={styles.leaveBtn}
-              onClick={handleLeaveActivity}
-              disabled={leaving}
-            >
-              {leaving ? 'Виходимо…' : 'Вийти'}
-            </button>
+            {isCreator ? (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={handleDeleteActivity}
+                disabled={leaving}
+              >
+                {leaving ? 'Видаляємо…' : 'Видалити'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={handleLeaveActivity}
+                disabled={leaving}
+              >
+                {leaving ? 'Виходимо…' : 'Вийти'}
+              </button>
+            )}
           </div>
         ) : selectedZone ? (
           <div className={styles.ongoingWrap}>
@@ -1021,48 +1074,41 @@ export default function Home() {
               <p className={styles.heroText}>{selectedZone.description}</p>
             )}
 
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Створив</span>
-              <span className={styles.zoneInfoValue}>
-                {selectedZone.creator?.username || '—'}
-              </span>
-            </div>
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Радіус</span>
-              <span className={styles.zoneInfoValue}>{selectedZone.radius || 80} м</span>
-            </div>
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Видимість</span>
-              <span className={styles.zoneInfoValue}>{selectedZone.is_friends_only ? 'Тільки друзі' : 'Для всіх'}</span>
-            </div>
+            {isZoneCreator ? (
+              <>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Створив</span>
+                  <span className={styles.zoneInfoValue}>
+                    {selectedZone.creator?.username || '—'}
+                  </span>
+                </div>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Радіус</span>
+                  <span className={styles.zoneInfoValue}>{selectedZone.radius || 80} м</span>
+                </div>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Видимість</span>
+                  <span className={styles.zoneInfoValue}>{selectedZone.is_friends_only ? 'Тільки друзі' : 'Для всіх'}</span>
+                </div>
 
-            <p className={styles.ongoingParticipantsTitle}>Учасники</p>
-            <div className={styles.ongoingParticipantsList}>
-              {(!selectedZone.participants || selectedZone.participants.length === 0) ? (
-                <div className={styles.emptyState}>Поки що ніхто не приєднався</div>
-              ) : (
-                selectedZone.participants.map((p) => (
-                  <Link className={styles.ongoingParticipant} key={p.id} to={`/profile/${p.id}`}>
-                    {p.avatar ? (
-                      <img src={p.avatar} alt="" className={styles.ongoingParticipantAvatarImg} />
-                    ) : (
-                      <span className={styles.ongoingParticipantAvatar}>
-                        {p.username?.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
-                    <span className={styles.ongoingParticipantName}>{p.username}</span>
-                  </Link>
-                ))
-              )}
-            </div>
-
-            <button
-              type="button"
-              className={styles.leaveBtn}
-              onClick={() => handleHideZone(selectedZone)}
-            >
-              Приховати
-            </button>
+                <button
+                  type="button"
+                  className={styles.leaveBtn}
+                  onClick={() => handleDeleteZone(selectedZone)}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Видаляємо…' : 'Видалити зону'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={() => handleHideZone(selectedZone)}
+              >
+                Приховати
+              </button>
+            )}
           </div>
         ) : (
           <>

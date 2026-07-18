@@ -187,6 +187,32 @@ class ParticipantCheckpoint(models.Model):
         return f"{self.invitation} passed {self.checkpoint}"
 
 
+class HiddenActivity(models.Model):
+    """Запис про те, що користувач приховав певну ігрову зону з мапи."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='hidden_activities'
+    )
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='hidden_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'activity'],
+                name='unique_hidden_activity_per_user'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} hidden {self.activity}"
+
+
 class Invitation(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Очікує'
