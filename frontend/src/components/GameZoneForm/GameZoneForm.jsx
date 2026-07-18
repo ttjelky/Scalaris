@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import api from '../../api/axios';
-import { getFriends } from '../../api/friends';
 import styles from './GameZoneForm.module.css';
 
 const MIN_RADIUS = 20;
@@ -18,7 +17,7 @@ function ErrorIcon() {
   );
 }
 
-export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCancel, onCreated }) {
+export default function GameZoneForm({ initialPosition, onCancel, onCreated }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -28,32 +27,10 @@ export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCanc
   const [description, setDescription] = useState('');
   const [radius, setRadius] = useState(DEFAULT_RADIUS);
   const [isFriendsOnly, setIsFriendsOnly] = useState(false);
-  const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [latLng, setLatLng] = useState(initialPosition || null);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState(null);
   const [clientErrors, setClientErrors] = useState({});
-
-  const [friends, setFriends] = useState([]);
-  const [participantFilter, setParticipantFilter] = useState('all');
-
-  useEffect(() => {
-    let cancelled = false;
-    getFriends()
-      .then(({ data }) => {
-        if (!cancelled) {
-          setFriends(Array.isArray(data) ? data : data.results || []);
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
-
-  const friendIdSet = useMemo(() => new Set(friends.map((f) => f.id)), [friends]);
-
-  const displayedUsers = participantFilter === 'friends'
-    ? nearbyUsers.filter((u) => friendIdSet.has(u.id))
-    : nearbyUsers;
 
   const updateCircle = (pos, r) => {
     if (!mapRef.current) return;
@@ -140,12 +117,6 @@ export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCanc
     if (latLng) updateCircle(latLng, r);
   };
 
-  const toggleParticipant = (id) => {
-    setSelectedParticipants((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setClientErrors((s) => ({ ...s, location: 'Геолокація недоступна в цьому браузері.' }));
@@ -191,7 +162,6 @@ export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCanc
         latitude: latLng[0],
         longitude: latLng[1],
         started_at: new Date().toISOString(),
-        participant_ids: selectedParticipants,
         geofence_radius_m: radius,
         is_friends_only: isFriendsOnly,
       };
@@ -272,7 +242,7 @@ export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCanc
       </div>
 
       <div className={styles.field}>
-        <label>Видимість</label>
+        <label>Кому видно</label>
         <button
           type="button"
           className={`${styles.toggleBtn} ${isFriendsOnly ? styles.toggleBtnActive : ''}`}
@@ -280,52 +250,6 @@ export default function GameZoneForm({ initialPosition, nearbyUsers = [], onCanc
         >
           {isFriendsOnly ? 'Тільки друзі' : 'Для всіх'}
         </button>
-      </div>
-
-      <div className={styles.field}>
-        <label>Запросити учасників (необов'язково)</label>
-        <div className={styles.filterToggle}>
-          <button
-            type="button"
-            className={`${styles.filterBtn} ${participantFilter === 'all' ? styles.filterBtnActive : ''}`}
-            onClick={() => setParticipantFilter('all')}
-          >
-            Усі
-          </button>
-          <button
-            type="button"
-            className={`${styles.filterBtn} ${participantFilter === 'friends' ? styles.filterBtnActive : ''}`}
-            onClick={() => setParticipantFilter('friends')}
-          >
-            Друзі
-          </button>
-        </div>
-        <div className={styles.participantsList}>
-          {displayedUsers.length === 0 && (
-            <div className={styles.empty}>
-              {participantFilter === 'friends' ? 'Немає друзів поруч' : 'Немає користувачів поруч'}
-            </div>
-          )}
-          {displayedUsers.map((u) => {
-            const active = selectedParticipants.includes(u.id);
-            return (
-              <button
-                type="button"
-                key={u.id}
-                className={`${styles.participant} ${active ? styles.participantActive : ''}`}
-                onClick={() => toggleParticipant(u.id)}
-                aria-pressed={active}
-              >
-                {u.avatar ? (
-                  <img src={u.avatar} alt="" className={styles.participantAvatarImg} />
-                ) : (
-                  <span className={styles.participantAvatar}>{u.username?.slice(0, 1).toUpperCase()}</span>
-                )}
-                {u.username}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {errors && (

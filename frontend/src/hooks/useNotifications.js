@@ -1,37 +1,66 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAccessToken } from '../api/axios';
 
+function closeSocketSafely(socket) {
+  if (!socket) return;
+  socket.onclose = null;
+  socket.onerror = null;
+  if (socket.readyState === WebSocket.CONNECTING) {
+    socket.onopen = () => socket.close();
+    return;
+  }
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
+}
+
 /**
  * WebSocket hook for real-time notification count updates.
- * Replaces the 30-second polling interval in Navbar.
  *
+ * @param {boolean} enabled - Connect only when the user session is ready.
  * @returns {{ notifCount: number, refreshCount: () => void }}
  */
-export default function useNotifications() {
+export default function useNotifications(enabled = false) {
   const [notifCount, setNotifCount] = useState(0);
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
   const reconnectDelay = useRef(1000);
-  const connectRef = useRef(null);
+  const connectionId = useRef(0);
 
   useEffect(() => {
+    if (!enabled) {
+      connectionId.current += 1;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      closeSocketSafely(ws.current);
+      ws.current = null;
+      return undefined;
+    }
+
     let active = true;
+    const currentConnectionId = ++connectionId.current;
 
     function connect() {
-      if (!active) return;
+      if (!active || currentConnectionId !== connectionId.current) return;
 
       const token = getAccessToken();
       if (!token) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
-      const url = `${protocol}//${host}/api/ws/notifications/?token=${token}`;
+      const url = `${protocol}//${host}/api/ws/notifications/?token=${encodeURIComponent(token)}`;
 
       try {
         const socket = new WebSocket(url);
         ws.current = socket;
 
         socket.onopen = () => {
+          if (!active || currentConnectionId !== connectionId.current) {
+            closeSocketSafely(socket);
+            return;
+          }
           reconnectDelay.current = 1000;
         };
 
@@ -47,32 +76,37 @@ export default function useNotifications() {
         };
 
         socket.onclose = (e) => {
-          ws.current = null;
-          if (e.code !== 4001 && active) {
-            reconnectTimer.current = setTimeout(() => {
-              reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
-              connect();
-            }, reconnectDelay.current);
-          }
+          if (socket === ws.current) ws.current = null;
+          if (!active || currentConnectionId !== connectionId.current) return;
+          // code 4001 = auth failure — don't retry
+          if (e.code === 4001) return;
+          reconnectTimer.current = setTimeout(() => {
+            reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
+            connect();
+          }, reconnectDelay.current);
         };
 
         socket.onerror = () => {
-          socket.close();
+          // onclose handles cleanup/reconnect
         };
       } catch {
         // WebSocket construction failed
       }
     }
 
-    connectRef.current = connect;
     connect();
 
     return () => {
       active = false;
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (ws.current) ws.current.close();
+      connectionId.current += 1;
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      closeSocketSafely(ws.current);
+      ws.current = null;
     };
-  }, []);
+  }, [enabled]);
 
   /** Manually request a count refresh from the server. */
   const refreshCount = useCallback(() => {

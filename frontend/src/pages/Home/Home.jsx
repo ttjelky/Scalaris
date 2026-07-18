@@ -7,6 +7,7 @@ import { getFriends } from '../../api/friends';
 import MapView from '../../components/Map/MapView';
 import Navbar from '../../components/Navbar/Navbar';
 import useActivitySocket from '../../hooks/useActivitySocket';
+import useZoneSocket from '../../hooks/useZoneSocket';
 import styles from './Home.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
@@ -158,6 +159,8 @@ export default function Home() {
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
   const [hideNonParticipants, setHideNonParticipants] = useState(false);
+  const [hiddenZoneIds, setHiddenZoneIds] = useState(new Set());
+  const { deletedZoneIds } = useZoneSocket();
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -171,6 +174,16 @@ export default function Home() {
   const ongoingElapsed = useElapsedTime(ongoingActivity?.started_at);
   const [leaving, setLeaving] = useState(false);
 
+  // Auto-expire cross activities on the client side when countdown hits 0.
+  useEffect(() => {
+    if (!ongoingActivity) return;
+    if (ongoingActivity.category !== 'cross' || !ongoingActivity.duration_seconds) return;
+    const remaining = ongoingActivity.duration_seconds * 1000 - ongoingElapsed;
+    if (remaining > 0) return;
+    setOngoingActivity(null);
+    setSheetState('collapsed');
+  }, [ongoingElapsed, ongoingActivity]);
+
   // --- Draggable bottom sheet state -------------------------------------
   const [sheetState, setSheetState] = useState('collapsed');
   const [isDragging, setIsDragging] = useState(false);
@@ -180,6 +193,8 @@ export default function Home() {
   const isDraggingRef = useRef(false);
   const rafRef = useRef(null);
   const hasDragged = useRef(false);
+
+  const isCreator = ongoingActivity && user && ongoingActivity.creator?.id === user.id;
 
   const activeActivity = useMemo(
     () => ACTIVITIES.find((a) => a.id === activeActivityId) || null,
@@ -197,6 +212,7 @@ export default function Home() {
 
   const handlePointerDown = (e) => {
     if (activeActivity) return; // no drag-to-collapse while filling out the form
+    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
     dragStartY.current = e.clientY;
     dragYRef.current = 0;
     hasDragged.current = false;
@@ -237,7 +253,9 @@ export default function Home() {
     dragYRef.current = 0;
 
     if (sheetState === 'expanded' && dragY > COLLAPSE_THRESHOLD) {
-      setSheetState('collapsed');
+      if (!(ongoingActivity && !isCreator)) {
+        setSheetState('collapsed');
+      }
     } else if (sheetState === 'collapsed' && dragY < -EXPAND_THRESHOLD) {
       setSheetState('expanded');
     }
@@ -252,6 +270,7 @@ export default function Home() {
 
   const handleHeaderClick = () => {
     if (activeActivity) return; // header no longer toggles collapse mid-form
+    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
     if (hasDragged.current) return;
     setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
   };
@@ -277,9 +296,42 @@ export default function Home() {
     navigate(`/profile/${person.id}`);
   };
 
+  const visibleZones = useMemo(
+    () => activeZones.filter((z) => !hiddenZoneIds.has(z.id) && !deletedZoneIds.has(z.id)),
+    [activeZones, hiddenZoneIds, deletedZoneIds]
+  );
+
   const handleZoneClick = (zone) => {
     setSelectedZone(zone);
     setSheetState('expanded');
+  };
+
+  const handleHideZone = async (zone) => {
+    setHiddenZoneIds((prev) => new Set([...prev, zone.id]));
+    setSelectedZone(null);
+    setSheetState('collapsed');
+    try {
+      await api.post(`/activities/${zone.id}/hide/`);
+    } catch {
+      // ignore
+    }
+  };
+
+  const isZoneCreator = selectedZone && user && selectedZone.creator?.id === user.id;
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteZone = async (zone) => {
+    setDeleting(true);
+    setActiveZones((prev) => prev.filter((z) => z.id !== zone.id));
+    setSelectedZone(null);
+    setSheetState('collapsed');
+    try {
+      await api.delete(`/activities/${zone.id}/`);
+    } catch {
+      // ignore
+    } finally {
+      setDeleting(false);
+    }
   };
   // ------------------------------------------------------------------------
 
@@ -323,8 +375,8 @@ export default function Home() {
     const ids = (ongoingActivity.participants || [])
       .filter((p) => activeStatuses.has(p.status))
       .map((p) => p.id);
-    if (ongoingActivity.creator && !ids.includes(ongoingActivity.creator)) {
-      ids.push(ongoingActivity.creator);
+    if (ongoingActivity.creator?.id && !ids.includes(ongoingActivity.creator.id)) {
+      ids.push(ongoingActivity.creator.id);
     }
     return new Set(ids);
   }, [ongoingActivity]);
@@ -381,7 +433,16 @@ export default function Home() {
               radius: 5,
             },
           });
-          setActiveZones(data);
+          const zones = Array.isArray(data) ? data : (data.zones || []);
+          const serverHiddenIds = data.hidden_ids || [];
+          setActiveZones(zones);
+          if (serverHiddenIds.length > 0) {
+            setHiddenZoneIds((prev) => {
+              const next = new Set(prev);
+              serverHiddenIds.forEach((id) => next.add(id));
+              return next;
+            });
+          }
         } catch {
           setActiveZones([]);
         }
@@ -515,6 +576,21 @@ export default function Home() {
     }
   };
 
+  const handleDeleteActivity = async () => {
+    if (!ongoingActivity?.id || leaving) return;
+    setLeaving(true);
+    setOngoingActivity(null);
+    setHideNonParticipants(false);
+    setSheetState('collapsed');
+    try {
+      await api.delete(`/activities/${ongoingActivity.id}/`);
+    } catch {
+      // ignore
+    } finally {
+      setLeaving(false);
+    }
+  };
+
   const recenterToMe = () => {
     if (position && mapRef.current) {
       try {
@@ -558,6 +634,10 @@ export default function Home() {
   // sheet over to the "ongoing activity" view instead of the people list.
   const handleActivityCreated = async (activity) => {
     setActiveActivityId(null);
+    // ActivitySerializer already returns the fully enriched creator +
+    // participants on create (same shape as GET), so set it synchronously
+    // — no need for an extra round trip, which only adds a flash back to
+    // the "nearby users" view while it's in flight.
     setOngoingActivity(activity);
     setSheetState('collapsed');
     const toastMsg = activity.category === 'cross' ? 'Крос створено успішно' : 'Збір створено успішно';
@@ -580,8 +660,7 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          <Navbar />
-
+          <Navbar onMenuToggle={() => setSheetState('collapsed')} />
           <Link to="/profile" className={styles.greetingBlock}>
             {user?.avatar ? (
               <img src={user.avatar} alt="" className={styles.greetingAvatar} />
@@ -590,7 +669,23 @@ export default function Home() {
             )}
             <span className={styles.greeting}>{user?.username}</span>
           </Link>
-
+          <button
+            className={styles.recenterButton}
+            onClick={recenterToMe}
+            type="button"
+            disabled={!position}
+            aria-label="Показати мою геопозицію"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M12 2V5M12 19V22M2 12H5M19 12H22"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
           <button
             className={styles.visibilityButton}
             onClick={toggleVisibility}
@@ -621,28 +716,16 @@ export default function Home() {
               )
             ) : visibleOnMap ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
+                <path d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
               </svg>
             ) : (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M17.94 17.94C16.23 19.24 14.24 20 12 20C5 20 1 13 1 13C2.24 10.72 3.9 8.87 5.76 7.53M9.9 4.24C10.58 4.09 11.28 4 12 4C19 4 23 12 23 12C22.39 13.15 21.62 14.29 20.72 15.35M14.12 14.12C13.63 14.65 12.86 15 12 15C10.34 15 9 13.66 9 12C9 11.14 9.35 10.37 9.88 9.88"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <path d="M17.94 17.94C16.23 19.24 14.24 20 12 20C5 20 1 13 1 13C2.24 10.72 3.9 8.87 5.76 7.53M9.9 4.24C10.58 4.09 11.28 4 12 4C19 4 23 12 23 12C22.39 13.15 21.62 14.29 20.72 15.35M14.12 14.12C13.63 14.65 12.86 15 12 15C10.34 15 9 13.66 9 12C9 11.14 9.35 10.37 9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M1 1L23 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             )}
           </button>
-
           <button
             className={`${styles.friendsFilterButton} ${friendsOnly ? styles.friendsFilterButtonActive : ''}`}
             onClick={() => setFriendsOnly((prev) => !prev)}
@@ -652,42 +735,12 @@ export default function Home() {
             title={friendsOnly ? 'Тільки друзі' : 'Всі'}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
-
-        <button
-          className={styles.recenterButton}
-          onClick={recenterToMe}
-          type="button"
-          disabled={!position}
-          aria-label="Показати мою геопозицію"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-            <path
-              d="M12 2V5M12 19V22M2 12H5M19 12H22"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
 
         <div className={styles.activityPills}>
           {ACTIVITIES.map((activity) => (
@@ -705,6 +758,57 @@ export default function Home() {
           ))}
         </div>
       </header>
+
+      <div className={styles.rightSidebar}>
+        <Navbar onMenuToggle={() => setSheetState('collapsed')} />
+        <button
+          className={styles.recenterButton}
+          onClick={recenterToMe}
+          type="button"
+          disabled={!position}
+          aria-label="Показати мою геопозицію"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+            <path d="M12 2V5M12 19V22M2 12H5M19 12H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          className={styles.visibilityButton}
+          onClick={toggleVisibility}
+          type="button"
+          disabled={togglingVisibility}
+          aria-pressed={visibleOnMap}
+          aria-label={visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті'}
+          title={visibleOnMap ? 'Видимий на карті' : 'Прихований з карти'}
+        >
+          {visibleOnMap ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.94 17.94C16.23 19.24 14.24 20 12 20C5 20 1 13 1 13C2.24 10.72 3.9 8.87 5.76 7.53M9.9 4.24C10.58 4.09 11.28 4 12 4C19 4 23 12 23 12C22.39 13.15 21.62 14.29 20.72 15.35M14.12 14.12C13.63 14.65 12.86 15 12 15C10.34 15 9 13.66 9 12C9 11.14 9.35 10.37 9.88 9.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M1 1L23 23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
+        <button
+          className={`${styles.friendsFilterButton} ${friendsOnly ? styles.friendsFilterButtonActive : ''}`}
+          onClick={() => setFriendsOnly((prev) => !prev)}
+          type="button"
+          aria-pressed={friendsOnly}
+          aria-label={friendsOnly ? 'Показати всіх на карті' : 'Показати тільки друзів'}
+          title={friendsOnly ? 'Тільки друзі' : 'Всі'}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
 
       <div className={styles.mapWrap}>
         {loading && (
@@ -728,7 +832,7 @@ export default function Home() {
             position={position}
             nearbyUsers={nearbyUsersFiltered}
             activities={nearbyActivities}
-            zones={activeZones}
+            zones={visibleZones}
             onZoneClick={handleZoneClick}
             gathering={gatheringMapData}
             checkpoints={checkpointsMapData}
@@ -835,12 +939,6 @@ export default function Home() {
                 <div className={styles.heroTitleBlock}>
                   <h1 className={styles.heroTitle}>{selectedZone.title}</h1>
                   <p className={styles.heroDistance}>Радіус: {selectedZone.radius || 80} м</p>
-                </div>
-                <div className={styles.heroBadge}>
-                  <span className={styles.heroBadgeValue}>
-                    {selectedZone.participants?.length || 0}
-                  </span>
-                  <span className={styles.heroBadgeLabel}>учасників</span>
                 </div>
               </>
             ) : (
@@ -950,14 +1048,25 @@ export default function Home() {
               )}
             </div>
 
-            <button
-              type="button"
-              className={styles.leaveBtn}
-              onClick={handleLeaveActivity}
-              disabled={leaving}
-            >
-              {leaving ? 'Виходимо…' : 'Вийти'}
-            </button>
+            {isCreator ? (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={handleDeleteActivity}
+                disabled={leaving}
+              >
+                {leaving ? 'Видаляємо…' : 'Видалити'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={handleLeaveActivity}
+                disabled={leaving}
+              >
+                {leaving ? 'Виходимо…' : 'Вийти'}
+              </button>
+            )}
           </div>
         ) : selectedZone ? (
           <div className={styles.ongoingWrap}>
@@ -965,40 +1074,41 @@ export default function Home() {
               <p className={styles.heroText}>{selectedZone.description}</p>
             )}
 
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Створив</span>
-              <span className={styles.zoneInfoValue}>
-                {selectedZone.creator?.username || '—'}
-              </span>
-            </div>
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Радіус</span>
-              <span className={styles.zoneInfoValue}>{selectedZone.radius || 80} м</span>
-            </div>
-            <div className={styles.zoneInfoRow}>
-              <span className={styles.zoneInfoLabel}>Видимість</span>
-              <span className={styles.zoneInfoValue}>{selectedZone.is_friends_only ? 'Тільки друзі' : 'Для всіх'}</span>
-            </div>
+            {isZoneCreator ? (
+              <>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Створив</span>
+                  <span className={styles.zoneInfoValue}>
+                    {selectedZone.creator?.username || '—'}
+                  </span>
+                </div>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Радіус</span>
+                  <span className={styles.zoneInfoValue}>{selectedZone.radius || 80} м</span>
+                </div>
+                <div className={styles.zoneInfoRow}>
+                  <span className={styles.zoneInfoLabel}>Видимість</span>
+                  <span className={styles.zoneInfoValue}>{selectedZone.is_friends_only ? 'Тільки друзі' : 'Для всіх'}</span>
+                </div>
 
-            <p className={styles.ongoingParticipantsTitle}>Учасники</p>
-            <div className={styles.ongoingParticipantsList}>
-              {(!selectedZone.participants || selectedZone.participants.length === 0) ? (
-                <div className={styles.emptyState}>Поки що ніхто не приєднався</div>
-              ) : (
-                selectedZone.participants.map((p) => (
-                  <Link className={styles.ongoingParticipant} key={p.id} to={`/profile/${p.id}`}>
-                    {p.avatar ? (
-                      <img src={p.avatar} alt="" className={styles.ongoingParticipantAvatarImg} />
-                    ) : (
-                      <span className={styles.ongoingParticipantAvatar}>
-                        {p.username?.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
-                    <span className={styles.ongoingParticipantName}>{p.username}</span>
-                  </Link>
-                ))
-              )}
-            </div>
+                <button
+                  type="button"
+                  className={styles.leaveBtn}
+                  onClick={() => handleDeleteZone(selectedZone)}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Видаляємо…' : 'Видалити зону'}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={styles.leaveBtn}
+                onClick={() => handleHideZone(selectedZone)}
+              >
+                Приховати
+              </button>
+            )}
           </div>
         ) : (
           <>

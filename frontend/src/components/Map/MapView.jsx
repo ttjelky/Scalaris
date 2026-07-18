@@ -343,7 +343,7 @@ function ProfileMiniCard({ person, onClose, onViewProfile }) {
 // `onViewProfile` (optional): called with a person object when someone taps
 // "Перейти в профіль" on the mini profile card opened from a cluster popup.
 // Left to the caller since navigation (route, modal, etc.) is app-specific.
-const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, zones, onZoneClick, className, onViewProfile, checkpoints }, ref) {
+const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, checkpoints, zones, onZoneClick, className, onViewProfile }, ref) {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
   const acceptedIds = gathering?.acceptedIds || [];

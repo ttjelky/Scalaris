@@ -45,15 +45,15 @@ const ITEMS = [
   { key: 'blocked', to: '/blocked-users', label: 'Заблоковані користувачі', icon: 'lock' },
 ];
 
-export default function Navbar() {
+export default function Navbar({ onMenuToggle }) {
   const [open, setOpen] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const rootRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const { notifCount } = useNotifications();
+  const { logout, isAuthenticated, loading } = useAuth();
+  const { notifCount } = useNotifications(isAuthenticated && !loading);
 
   const close = () => setOpen(false);
 
@@ -102,7 +102,11 @@ export default function Navbar() {
         className={`${styles.burger} ${open ? styles.burgerOpen : ''}`}
         aria-label={open ? 'Закрити меню' : 'Відкрити меню'}
         aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) onMenuToggle?.(true);
+        }}
       >
         <span className={styles.burgerLine} />
         <span className={styles.burgerLine} />

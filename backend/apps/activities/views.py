@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from apps.users.serializers import UserPublicSerializer
 from apps.users.models import Block
-from .models import Activity, Invitation, Location, Checkpoint, ParticipantCheckpoint
+from .models import Activity, Invitation, Location, Checkpoint, ParticipantCheckpoint, HiddenActivity
 from .permissions import IsCreatorOrReadOnly, IsInvitationReceiver
 from .serializers import (
     ActivityListSerializer,
@@ -137,14 +137,54 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='leave')
     def leave(self, request, pk=None):
-        """Творець достроково завершує свій live-збір (кнопка «Вийти» на фронті)."""
+        """
+        Творець достроково завершує свій live-збір (кнопка «Вийти» на фронті).
+
+        Ігрові зони — виняток: це не сесія, яку веде creator і без якого
+        вона втрачає сенс (як «Збір» чи «Крос»), а позначка на мапі з
+        налаштованою видимістю (для всіх / тільки друзі). Вихід творця не
+        повинен скасовувати чи видаляти зону для інших користувачів, тому
+        для category=ZONE просто нічого не скасовуємо.
+        """
         activity = self.get_object()
-        activity.cancel()
+        if activity.category != Activity.Category.ZONE:
+            activity.cancel()
         serializer = self.get_serializer(activity)
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass',
             permission_classes=[permissions.IsAuthenticated])
+    def destroy(self, request, *args, **kwargs):
+        """Видалення активності творцем. Розсилає WebSocket-сповіщення."""
+        activity = self.get_object()
+        activity_id = activity.pk
+        activity.delete()
+
+        try:
+            from api.consumers import notify_zone_deleted
+            notify_zone_deleted(activity_id)
+        except Exception:
+            pass
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='hide')
+    def hide(self, request, pk=None):
+        """Приховати ігрову зону для поточного користувача назавжди."""
+        activity = self.get_object()
+        if activity.category != Activity.Category.ZONE:
+            return Response(
+                {'detail': 'Можна приховати лише ігрові зони.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        HiddenActivity.objects.get_or_create(
+            user=request.user,
+            activity=activity,
+        )
+        return Response({'detail': 'Зону приховано.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass')
     def pass_checkpoint(self, request, pk=None, checkpoint_id=None):
         """Учасник позначає, що пройшов чекпоїнт."""
         activity = self.get_object()
@@ -245,6 +285,9 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
         friend_ids = set(request.user.friends.values_list('pk', flat=True))
         friend_ids.add(request.user.pk)  # always include own zones
+        hidden_ids = set(
+            HiddenActivity.objects.filter(user=request.user).values_list('activity_id', flat=True)
+        )
 
         zones = (
             Activity.objects.filter(
@@ -252,6 +295,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 live_status__in=[Activity.LiveStatus.ACTIVE, Activity.LiveStatus.PENDING],
                 point__distance_lte=(point, D(km=radius_km)),
             )
+            .exclude(pk__in=hidden_ids)
             .select_related('creator')
             .prefetch_related('invitations__to_user')
         )
@@ -283,7 +327,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
                 'created_at': zone.created_at.isoformat(),
             })
 
-        return Response(data)
+        return Response({'zones': data, 'hidden_ids': list(hidden_ids)})
 
 
 class InvitationViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
