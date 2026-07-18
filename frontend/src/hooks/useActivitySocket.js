@@ -27,6 +27,8 @@ export default function useActivitySocket(activityId) {
   const ws = useRef(null);
   const connectionId = useRef(0);
   const reconnectDelay = useRef(1000);
+  const reconnectAttempts = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 10;
 
   useEffect(() => {
     if (!activityId) return undefined;
@@ -42,7 +44,6 @@ export default function useActivitySocket(activityId) {
     setLiveStatus('');
 
     let active = true;
-    let reconnectTimer = null;
     const currentConnectionId = ++connectionId.current;
 
     function connect() {
@@ -64,6 +65,7 @@ export default function useActivitySocket(activityId) {
             closeSocketSafely(socket);
           }
           reconnectDelay.current = 1000;
+          reconnectAttempts.current = 0;
         };
 
         socket.onmessage = (e) => {
@@ -97,6 +99,8 @@ export default function useActivitySocket(activityId) {
         socket.onclose = () => {
           if (socket === ws.current) ws.current = null;
           if (!active || currentConnectionId !== connectionId.current) return;
+          reconnectAttempts.current += 1;
+          if (reconnectAttempts.current > MAX_RECONNECT_ATTEMPTS) return;
           reconnectTimer = setTimeout(() => {
             reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
             connect();

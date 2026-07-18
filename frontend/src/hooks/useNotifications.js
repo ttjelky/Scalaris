@@ -25,6 +25,8 @@ export default function useNotifications(enabled = false) {
   const ws = useRef(null);
   const reconnectTimer = useRef(null);
   const reconnectDelay = useRef(1000);
+  const reconnectAttempts = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 10;
   const connectionId = useRef(0);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function useNotifications(enabled = false) {
             return;
           }
           reconnectDelay.current = 1000;
+          reconnectAttempts.current = 0;
         };
 
         socket.onmessage = (e) => {
@@ -80,6 +83,8 @@ export default function useNotifications(enabled = false) {
           if (!active || currentConnectionId !== connectionId.current) return;
           // code 4001 = auth failure — don't retry
           if (e.code === 4001) return;
+          reconnectAttempts.current += 1;
+          if (reconnectAttempts.current > MAX_RECONNECT_ATTEMPTS) return;
           reconnectTimer.current = setTimeout(() => {
             reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
             connect();
