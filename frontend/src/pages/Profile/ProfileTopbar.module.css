@@ -1,7 +1,7 @@
 .topbar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   padding: max(16px, env(safe-area-inset-top)) 20px 12px;
 }
 

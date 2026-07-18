@@ -80,6 +80,16 @@
   border-color: var(--color-accent, #c6ff3d);
 }
 
+/* The duplicate pill set only exists to make the mobile row scroll
+   "infinitely" (see the comment in TopBar.jsx). Above the mobile
+   breakpoint the row never scrolls, so the duplicates must stay hidden —
+   otherwise every activity visibly appears twice on tablet/desktop. */
+@media (min-width: 769px) {
+  .activityPillDuplicate {
+    display: none;
+  }
+}
+
 .visibilityButton {
   display: flex;
   align-items: center;

@@ -168,14 +168,32 @@ export default function TopBar({
         </div>
 
         <div className={styles.activityPills} ref={pillsRef} onScroll={onPillsScroll}>
-          {[...ACTIVITIES, ...ACTIVITIES].map((activity, i) => (
+          {ACTIVITIES.map((activity) => (
             <button
-              key={`${activity.id}-${i}`}
+              key={activity.id}
               type="button"
               className={`${styles.activityPill} ${activeActivityId === activity.id ? styles.activityPillActive : ''}`}
               onClick={() => onPillClick(activity)}
               disabled={!canCreateActivity}
               title={canCreateActivity ? undefined : 'Спочатку заверши поточний збір'}
+            >
+              {activity.icon}
+              <span>{activity.label}</span>
+            </button>
+          ))}
+          {/* Duplicate set — creates the illusion of an infinite loop when the
+              row scrolls horizontally on mobile (see handlePillsScroll in
+              Home.jsx). Hidden on wider screens where the row never needs to
+              scroll, so activities don't visibly appear twice on desktop. */}
+          {ACTIVITIES.map((activity) => (
+            <button
+              key={`${activity.id}-dup`}
+              type="button"
+              aria-hidden="true"
+              tabIndex={-1}
+              className={`${styles.activityPill} ${styles.activityPillDuplicate} ${activeActivityId === activity.id ? styles.activityPillActive : ''}`}
+              onClick={() => onPillClick(activity)}
+              disabled={!canCreateActivity}
             >
               {activity.icon}
               <span>{activity.label}</span>

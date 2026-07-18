@@ -714,7 +714,10 @@
   left: 50%;
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px);
   transform: translateX(-50%);
-  z-index: 601;
+  /* Must stay above .sheet, whose z-index jumps to 750 on mobile (see the
+     max-width:768px rule below) — otherwise the sheet header renders on top
+     and clips this badge instead of it being layered over the sheet. */
+  z-index: 800;
   padding: 6px 14px;
   border-radius: 999px;
   background: var(--color-ink, #0b0b0c);

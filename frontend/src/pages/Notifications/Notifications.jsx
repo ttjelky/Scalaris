@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   getNotifications,
   acceptFriendRequest,
@@ -23,7 +23,6 @@ function timeAgo(isoString) {
 }
 
 export default function Notifications() {
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -86,10 +85,6 @@ export default function Notifications() {
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
           <Navbar />
-          <button className={styles.back} onClick={() => navigate(-1)} type="button">
-            <span className={styles.backArrow} aria-hidden="true">←</span>
-            Назад
-          </button>
         </div>
       </header>
 

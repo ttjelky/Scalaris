@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import Navbar from '../../components/Navbar/Navbar';
 import styles from './BlockedUsers.module.css';
 
 export default function BlockedUsers() {
-  const navigate = useNavigate();
-
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,10 +52,6 @@ export default function BlockedUsers() {
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
           <Navbar />
-          <button className={styles.back} onClick={() => navigate(-1)} type="button">
-            <span className={styles.backArrow} aria-hidden="true">←</span>
-            Назад
-          </button>
         </div>
       </header>
 
