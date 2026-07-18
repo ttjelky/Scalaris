@@ -930,4 +930,8 @@
   .topbarLeft > *:not(.greetingBlock) {
     display: none;
   }
+
+  .sheet {
+    z-index: 750;
+  }
 }
