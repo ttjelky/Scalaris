@@ -31,6 +31,7 @@ export default function useActivitySocket(activityId) {
   useEffect(() => {
     if (!activityId) return undefined;
 
+    let reconnectTimer = null;
     // Reset local state for this activityId right away. Without this,
     // a stale `cancelled: true` from a *previous* activity (e.g. one the
     // user just left) survives until the new socket's first `activity_state`
@@ -47,6 +48,9 @@ export default function useActivitySocket(activityId) {
 
     function connect() {
       if (!active || currentConnectionId !== connectionId.current) return;
+
+      const token = getAccessToken();
+      if (!token) return;
 
       const token = getAccessToken();
       if (!token) return;

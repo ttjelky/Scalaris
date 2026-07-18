@@ -52,7 +52,18 @@ npm run dev                   # http://localhost:5174
 
 ---
 
-## 3. GDAL / GEOS setup (required — GeoDjango won't start without this)
+## 3. Tests
+
+# Backend
+cd backend && python manage.py test apps.users apps.activities
+cd backend && python manage.py test api.tests
+
+# Frontend
+cd frontend && npm run test
+
+---
+
+## 4. GDAL / GEOS setup (required — GeoDjango won't start without this)
 
 These are **system libraries**, not pip packages. `pip install -r requirements.txt` will succeed without them, but `python manage.py migrate` / `runserver` will fail.
 
@@ -77,7 +88,7 @@ These are **system libraries**, not pip packages. `pip install -r requirements.t
 
 ---
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
 **`failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`**
 Docker Desktop app isn't running. Launch it from the Start menu and wait until the whale icon in the tray stops animating, then retry `docker compose up -d`.
@@ -93,7 +104,7 @@ Check `node -v` — needs to be 20 or newer.
 
 ---
 
-## 5. Project layout
+## 6. Project layout
 
 ```
 scalaris/

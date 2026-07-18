@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Circle, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
