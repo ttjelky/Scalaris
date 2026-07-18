@@ -158,6 +158,7 @@ export default function Home() {
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
   const [hideNonParticipants, setHideNonParticipants] = useState(false);
+  const [hiddenZoneIds, setHiddenZoneIds] = useState(new Set());
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -171,6 +172,16 @@ export default function Home() {
   const ongoingElapsed = useElapsedTime(ongoingActivity?.started_at);
   const [leaving, setLeaving] = useState(false);
 
+  // Auto-expire cross activities on the client side when countdown hits 0.
+  useEffect(() => {
+    if (!ongoingActivity) return;
+    if (ongoingActivity.category !== 'cross' || !ongoingActivity.duration_seconds) return;
+    const remaining = ongoingActivity.duration_seconds * 1000 - ongoingElapsed;
+    if (remaining > 0) return;
+    setOngoingActivity(null);
+    setSheetState('collapsed');
+  }, [ongoingElapsed, ongoingActivity]);
+
   // --- Draggable bottom sheet state -------------------------------------
   const [sheetState, setSheetState] = useState('collapsed');
   const [isDragging, setIsDragging] = useState(false);
@@ -180,6 +191,8 @@ export default function Home() {
   const isDraggingRef = useRef(false);
   const rafRef = useRef(null);
   const hasDragged = useRef(false);
+
+  const isCreator = ongoingActivity && user && ongoingActivity.creator?.id === user.id;
 
   const activeActivity = useMemo(
     () => ACTIVITIES.find((a) => a.id === activeActivityId) || null,
@@ -197,6 +210,7 @@ export default function Home() {
 
   const handlePointerDown = (e) => {
     if (activeActivity) return; // no drag-to-collapse while filling out the form
+    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
     dragStartY.current = e.clientY;
     dragYRef.current = 0;
     hasDragged.current = false;
@@ -237,7 +251,9 @@ export default function Home() {
     dragYRef.current = 0;
 
     if (sheetState === 'expanded' && dragY > COLLAPSE_THRESHOLD) {
-      setSheetState('collapsed');
+      if (!(ongoingActivity && !isCreator)) {
+        setSheetState('collapsed');
+      }
     } else if (sheetState === 'collapsed' && dragY < -EXPAND_THRESHOLD) {
       setSheetState('expanded');
     }
@@ -252,6 +268,7 @@ export default function Home() {
 
   const handleHeaderClick = () => {
     if (activeActivity) return; // header no longer toggles collapse mid-form
+    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
     if (hasDragged.current) return;
     setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
   };
@@ -277,9 +294,20 @@ export default function Home() {
     navigate(`/profile/${person.id}`);
   };
 
+  const visibleZones = useMemo(
+    () => activeZones.filter((z) => !hiddenZoneIds.has(z.id)),
+    [activeZones, hiddenZoneIds]
+  );
+
   const handleZoneClick = (zone) => {
     setSelectedZone(zone);
     setSheetState('expanded');
+  };
+
+  const handleHideZone = (zone) => {
+    setHiddenZoneIds((prev) => new Set([...prev, zone.id]));
+    setSelectedZone(null);
+    setSheetState('collapsed');
   };
   // ------------------------------------------------------------------------
 
@@ -323,8 +351,8 @@ export default function Home() {
     const ids = (ongoingActivity.participants || [])
       .filter((p) => activeStatuses.has(p.status))
       .map((p) => p.id);
-    if (ongoingActivity.creator && !ids.includes(ongoingActivity.creator)) {
-      ids.push(ongoingActivity.creator);
+    if (ongoingActivity.creator?.id && !ids.includes(ongoingActivity.creator.id)) {
+      ids.push(ongoingActivity.creator.id);
     }
     return new Set(ids);
   }, [ongoingActivity]);
@@ -558,6 +586,10 @@ export default function Home() {
   // sheet over to the "ongoing activity" view instead of the people list.
   const handleActivityCreated = async (activity) => {
     setActiveActivityId(null);
+    // ActivitySerializer already returns the fully enriched creator +
+    // participants on create (same shape as GET), so set it synchronously
+    // — no need for an extra round trip, which only adds a flash back to
+    // the "nearby users" view while it's in flight.
     setOngoingActivity(activity);
     setSheetState('collapsed');
     const toastMsg = activity.category === 'cross' ? 'Крос створено успішно' : 'Збір створено успішно';
@@ -728,7 +760,7 @@ export default function Home() {
             position={position}
             nearbyUsers={nearbyUsersFiltered}
             activities={nearbyActivities}
-            zones={activeZones}
+            zones={visibleZones}
             onZoneClick={handleZoneClick}
             gathering={gatheringMapData}
             checkpoints={checkpointsMapData}
@@ -999,6 +1031,14 @@ export default function Home() {
                 ))
               )}
             </div>
+
+            <button
+              type="button"
+              className={styles.leaveBtn}
+              onClick={() => handleHideZone(selectedZone)}
+            >
+              Приховати
+            </button>
           </div>
         ) : (
           <>

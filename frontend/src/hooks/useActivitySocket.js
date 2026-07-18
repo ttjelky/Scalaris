@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken } from '../api/axios';
 
+// Was previously imported from a sibling './closeSocketSafely' file that
+// doesn't exist in the repo — inlined here instead of relying on that file.
 function closeSocketSafely(socket) {
   if (!socket) return;
-  socket.onclose = null;
-  socket.onerror = null;
-  if (socket.readyState === WebSocket.CONNECTING) {
-    socket.onopen = () => socket.close();
-    return;
-  }
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.close();
+  try {
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close();
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -26,9 +26,20 @@ export default function useActivitySocket(activityId) {
   const [cancelled, setCancelled] = useState(false);
   const ws = useRef(null);
   const connectionId = useRef(0);
+  const reconnectDelay = useRef(1000);
 
   useEffect(() => {
     if (!activityId) return undefined;
+
+    // Reset local state for this activityId right away. Without this,
+    // a stale `cancelled: true` from a *previous* activity (e.g. one the
+    // user just left) survives until the new socket's first `activity_state`
+    // message arrives — and the consuming component (Home) reacts to that
+    // stale flag before the new connection has a chance to correct it,
+    // wiping out a just-created activity.
+    setCancelled(false);
+    setParticipants([]);
+    setLiveStatus('');
 
     let active = true;
     let reconnectTimer = null;
@@ -52,6 +63,7 @@ export default function useActivitySocket(activityId) {
           if (!active || currentConnectionId !== connectionId.current) {
             closeSocketSafely(socket);
           }
+          reconnectDelay.current = 1000;
         };
 
         socket.onmessage = (e) => {
@@ -85,7 +97,10 @@ export default function useActivitySocket(activityId) {
         socket.onclose = () => {
           if (socket === ws.current) ws.current = null;
           if (!active || currentConnectionId !== connectionId.current) return;
-          reconnectTimer = setTimeout(connect, 3000);
+          reconnectTimer = setTimeout(() => {
+            reconnectDelay.current = Math.min(reconnectDelay.current * 2, 30000);
+            connect();
+          }, reconnectDelay.current);
         };
 
         socket.onerror = () => {
