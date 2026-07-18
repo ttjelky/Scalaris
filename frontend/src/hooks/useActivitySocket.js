@@ -117,8 +117,16 @@ export default function useActivitySocket(activityId) {
       active = false;
       connectionId.current += 1;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      closeSocketSafely(ws.current);
+      const socket = ws.current;
       ws.current = null;
+      if (socket) {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+        // If still CONNECTING, let onopen handle the close.
+        // Closing a CONNECTING socket triggers "closed before connection is established"
+        // warnings (notably in React StrictMode where effects run, clean up, and re-run).
+      }
     };
   }, [activityId]);
 
