@@ -207,9 +207,10 @@ class ActivitySerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"checkpoints_data": "Для кросу потрібно мінімум 2 чекпоїнти."}
                 )
-            if not attrs.get('duration_seconds'):
+            duration = attrs.get('duration_seconds')
+            if duration is not None and duration < 30:
                 raise serializers.ValidationError(
-                    {"duration_seconds": "Для кросу обов'язково вказати тривалість."}
+                    {"duration_seconds": "Мінімальна тривалість — 30 секунд."}
                 )
             orders = [cp['order'] for cp in checkpoints_data]
             if sorted(orders) != list(range(1, len(orders) + 1)):

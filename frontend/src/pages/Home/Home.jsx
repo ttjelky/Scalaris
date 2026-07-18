@@ -157,6 +157,7 @@ export default function Home() {
 
   const [friendsOnly, setFriendsOnly] = useState(false);
   const [friendsList, setFriendsList] = useState([]);
+  const [hideNonParticipants, setHideNonParticipants] = useState(false);
 
   // Which activity (if any) is currently being created. The bottom sheet
   // switches its content based on this instead of opening a separate modal.
@@ -316,10 +317,28 @@ export default function Home() {
 
   const friendIdSet = useMemo(() => new Set(friendsList.map((f) => f.id)), [friendsList]);
 
+  const activityParticipantIds = useMemo(() => {
+    if (!ongoingActivity) return null;
+    const activeStatuses = new Set(['accepted', 'arrived']);
+    const ids = (ongoingActivity.participants || [])
+      .filter((p) => activeStatuses.has(p.status))
+      .map((p) => p.id);
+    if (ongoingActivity.creator && !ids.includes(ongoingActivity.creator)) {
+      ids.push(ongoingActivity.creator);
+    }
+    return new Set(ids);
+  }, [ongoingActivity]);
+
   const nearbyUsersFiltered = useMemo(() => {
-    if (!friendsOnly) return nearbyUsers;
-    return nearbyUsers.filter((u) => friendIdSet.has(u.id));
-  }, [nearbyUsers, friendsOnly, friendIdSet]);
+    let list = nearbyUsers;
+    if (friendsOnly) {
+      list = list.filter((u) => friendIdSet.has(u.id));
+    }
+    if (hideNonParticipants && activityParticipantIds) {
+      list = list.filter((u) => activityParticipantIds.has(u.id));
+    }
+    return list;
+  }, [nearbyUsers, friendsOnly, friendIdSet, hideNonParticipants, activityParticipantIds]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -461,6 +480,26 @@ export default function Home() {
     };
   }, [ongoingActivity]);
 
+  const checkpointsMapData = useMemo(() => {
+    if (!ongoingActivity || ongoingActivity.category !== 'cross') return null;
+    const cps = ongoingActivity.checkpoints || [];
+    if (cps.length === 0) return null;
+
+    // Find passed checkpoint IDs (from the creator's or first participant's perspective)
+    const me = (ongoingActivity.participants || []).find((p) => p.id === user?.id);
+    const myPassed = me?.passed_checkpoints || [];
+
+    // Current = first checkpoint not yet passed
+    const current = cps.find((cp) => !myPassed.includes(cp.id)) || null;
+
+    return {
+      items: cps,
+      currentId: current?.id || null,
+      passedIds: myPassed,
+      userPosition: position,
+    };
+  }, [ongoingActivity, user?.id, position]);
+
   const handleLeaveActivity = async () => {
     if (!ongoingActivity?.id || leaving) return;
     setLeaving(true);
@@ -471,6 +510,7 @@ export default function Home() {
     } finally {
       setLeaving(false);
       setOngoingActivity(null);
+      setHideNonParticipants(false);
       setSheetState('collapsed');
     }
   };
@@ -487,7 +527,13 @@ export default function Home() {
 
   const visibleOnMap = user?.is_visible_on_map ?? true;
 
+  const hasActivity = !!ongoingActivity;
+
   const toggleVisibility = async () => {
+    if (hasActivity) {
+      setHideNonParticipants((prev) => !prev);
+      return;
+    }
     const next = !visibleOnMap;
     updateUser({ is_visible_on_map: next }); // optimistic
     setTogglingVisibility(true);
@@ -550,11 +596,30 @@ export default function Home() {
             onClick={toggleVisibility}
             type="button"
             disabled={togglingVisibility}
-            aria-pressed={visibleOnMap}
-            aria-label={visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті'}
-            title={visibleOnMap ? 'Видимий на карті' : 'Прихований з карти'}
+            aria-pressed={hasActivity ? hideNonParticipants : visibleOnMap}
+            aria-label={hasActivity
+              ? (hideNonParticipants ? 'Показати всіх на карті' : 'Приховати не-учасників')
+              : (visibleOnMap ? 'Сховати мене з карти' : 'Показати мене на карті')}
+            title={hasActivity
+              ? (hideNonParticipants ? 'Показати всіх' : 'Тільки учасники')
+              : (visibleOnMap ? 'Видимий на карті' : 'Прихований з карти')}
           >
-            {visibleOnMap ? (
+            {hasActivity ? (
+              hideNonParticipants ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+                  <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )
+            ) : visibleOnMap ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
                   d="M1 12C1 12 5 5 12 5C19 5 23 12 23 12C23 12 19 19 12 19C5 19 1 12 1 12Z"
@@ -666,6 +731,7 @@ export default function Home() {
             zones={activeZones}
             onZoneClick={handleZoneClick}
             gathering={gatheringMapData}
+            checkpoints={checkpointsMapData}
             onViewProfile={handleViewProfile}
           />
         )}
@@ -676,6 +742,16 @@ export default function Home() {
         onClick={() => !activeActivity && setSheetState('collapsed')}
         aria-hidden="true"
       />
+
+      {(hideNonParticipants || friendsOnly) && sheetState !== 'expanded' && (
+        <span className={styles.filterBadge}>
+          {hideNonParticipants && friendsOnly
+            ? 'Друзі · Учасники'
+            : hideNonParticipants
+              ? 'Учасники'
+              : 'Лише друзі'}
+        </span>
+      )}
 
       <div ref={sheetRef} className={sheetClassName}>
         <div
@@ -711,16 +787,21 @@ export default function Home() {
                 >
                   ←
                 </button>
-                <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
+                <div className={styles.heroTitleBlock}>
+                  <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
+                </div>
                 <span className={styles.sheetBackSpacer} aria-hidden="true" />
               </>
             ) : ongoingActivity ? (
               <>
-                <div
-                  className={styles.sheetBackBtn}
-                  aria-label={`Учасників у зборі: ${ongoingParticipantsCount}`}
-                >
-                  {ongoingParticipantsCount}
+                <div className={styles.heroRowParticipants}>
+                  <div
+                    className={styles.heroParticipantsCircle}
+                    aria-label={`Учасників у зборі: ${ongoingParticipantsCount}`}
+                  >
+                    {ongoingParticipantsCount}
+                  </div>
+                  <span className={styles.heroRowParticipantsLabel}>учасник</span>
                 </div>
                 <div className={styles.heroTitleBlock}>
                   <h1 className={styles.heroTitle}>{ongoingActivity.title || 'Збір'}</h1>
@@ -728,11 +809,17 @@ export default function Home() {
                     <p className={styles.heroDistance}>{ongoingDistanceLabel}</p>
                   )}
                 </div>
-                <div className={styles.heroBadge}>
-                  <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
-                    {formatClock(ongoingElapsed)}
+                <div className={styles.heroBadgeBlock}>
+                  <div className={styles.heroBadge}>
+                    <span className={`${styles.heroBadgeValue} ${styles.heroBadgeValueClock}`}>
+                      {ongoingActivity.category === 'cross' && ongoingActivity.duration_seconds
+                        ? formatClock(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))
+                        : formatClock(ongoingElapsed)}
+                    </span>
+                  </div>
+                  <span className={styles.heroBadgeLabel}>
+                    {ongoingActivity.category === 'cross' && ongoingActivity.duration_seconds ? 'залишилось' : 'триває'}
                   </span>
-                  <span className={styles.heroBadgeLabel}>триває</span>
                 </div>
               </>
             ) : selectedZone ? (
@@ -758,14 +845,16 @@ export default function Home() {
               </>
             ) : (
               <>
-                <div>
+                <div className={styles.heroTitleBlockLeft}>
                   <p className={styles.kicker}>Твоя зона активності</p>
                   <h1 className={styles.heroTitle}>Люди поруч</h1>
                 </div>
-                <div className={styles.heroBadge}>
-                  <span key={nearbyCount} className={styles.heroBadgeValue}>
-                    {nearbyCount}
-                  </span>
+                <div className={styles.heroBadgeBlock}>
+                  <div className={styles.heroBadge}>
+                    <span key={nearbyCount} className={styles.heroBadgeValue}>
+                      {nearbyCount}
+                    </span>
+                  </div>
                   <span className={styles.heroBadgeLabel}>поруч</span>
                 </div>
               </>
@@ -803,9 +892,10 @@ export default function Home() {
             {ongoingActivity.category === 'cross' ? (
               <>
                 <p className={styles.heroText}>
-                  Крос триває вже {formatDurationLong(ongoingElapsed)}.
-                  {ongoingActivity.duration_seconds && (
-                    <> Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  {ongoingActivity.duration_seconds ? (
+                    <>Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  ) : (
+                    <>Крос триває вже {formatDurationLong(ongoingElapsed)}.</>
                   )}
                 </p>
 

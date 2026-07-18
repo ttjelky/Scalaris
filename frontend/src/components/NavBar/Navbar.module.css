@@ -59,6 +59,24 @@
   transform: translateY(-5px) rotate(-45deg);
 }
 
+.burgerBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #d3372d;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  z-index: 1;
+}
+
 /* ----------------------------------------------------------------- menu */
 
 .menu {
