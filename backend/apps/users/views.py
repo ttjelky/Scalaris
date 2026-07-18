@@ -1,8 +1,15 @@
 import hashlib
+import json
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -11,12 +18,15 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
-from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie
-from .models import User
+from .cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, set_refresh_cookie
+from .models import Block, FriendRequest, Report, User
+from api.consumers import notify_user
 from .serializers import (
+    FriendRequestSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
     RegisterSerializer,
+    ReportSerializer,
     UserPublicSerializer,
     UserSerializer,
 )
@@ -53,6 +63,341 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [RegisterRateThrottle]
+
+
+class DiscordAuthRateThrottle(AnonRateThrottle):
+    # Reuses the 'login' scope — a Discord auth attempt is a login attempt
+    # for rate-limiting purposes, same as the password-based one.
+    scope = 'login'
+
+
+class DiscordOAuthMixin:
+    """Shared code exchange + profile fetch for anything talking to Discord's
+    OAuth2 API. Used by both the anonymous login/register flow and the
+    authenticated link flow below."""
+
+    TOKEN_URL = 'https://discord.com/api/oauth2/token'
+    PROFILE_URL = 'https://discord.com/api/users/@me'
+    CALLBACK_PATH = '/oauth/discord/callback'
+
+    def _resolve_redirect_uri(self, request):
+        """Return redirect_uri for token exchange — must exactly match the one
+        sent to Discord's authorize endpoint (typically origin + CALLBACK_PATH)."""
+        configured = (settings.DISCORD_REDIRECT_URI or '').rstrip('/')
+        requested = (request.data.get('redirect_uri') or '').rstrip('/')
+
+        allowed = set()
+        if configured:
+            allowed.add(configured)
+
+        frontend_base = (getattr(settings, 'FRONTEND_URL', '') or '').rstrip('/')
+        if frontend_base:
+            allowed.add(f'{frontend_base}{self.CALLBACK_PATH}')
+
+        for origin in getattr(settings, 'CORS_ALLOWED_ORIGINS', []):
+            allowed.add(f'{origin.rstrip("/")}{self.CALLBACK_PATH}')
+
+        if requested:
+            if requested in allowed:
+                return requested
+            origin = requested[: -len(self.CALLBACK_PATH)] if requested.endswith(self.CALLBACK_PATH) else ''
+            if origin:
+                for pattern in getattr(settings, 'CORS_ALLOWED_ORIGIN_REGEXES', []):
+                    if re.match(pattern, origin):
+                        return requested
+            return None
+
+        return configured or None
+
+    def _exchange_code(self, code, redirect_uri):
+        data = urllib.parse.urlencode({
+            'client_id': settings.DISCORD_CLIENT_ID,
+            'client_secret': settings.DISCORD_CLIENT_SECRET,
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri,
+        }).encode()
+        req = urllib.request.Request(
+            self.TOKEN_URL,
+            data=data,
+            headers={
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Scalaris/1.0',
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read().decode())
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                return None
+        except (urllib.error.URLError, TimeoutError):
+            return None
+
+    def _discord_error_detail(self, token_data):
+        if not isinstance(token_data, dict):
+            return 'Discord authorization failed.'
+        detail = token_data.get('error_description') or token_data.get('error') or 'Discord authorization failed.'
+        if settings.DEBUG and token_data.get('error'):
+            detail = f'{detail} ({token_data["error"]})'
+        return detail
+
+    def _fetch_profile(self, access_token):
+        req = urllib.request.Request(
+            self.PROFILE_URL,
+            headers={
+                'Authorization': f'Bearer {access_token}',
+                'User-Agent': 'Scalaris/1.0',
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read())
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+            return None
+
+    def _exchange_and_fetch(self, code, redirect_uri):
+        """Returns (profile, None) on success or (None, error_response) on failure."""
+        if not settings.DISCORD_CLIENT_ID or not settings.DISCORD_CLIENT_SECRET:
+            return None, Response(
+                {'detail': 'Discord OAuth is not configured.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        if not redirect_uri:
+            return None, Response({'detail': 'Missing redirect_uri.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        token_data = self._exchange_code(code, redirect_uri)
+        if not isinstance(token_data, dict) or 'access_token' not in token_data:
+            return None, Response(
+                {'detail': self._discord_error_detail(token_data)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile = self._fetch_profile(token_data['access_token'])
+        if profile is None:
+            return None, Response({'detail': 'Could not fetch Discord profile.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return profile, None
+
+
+class DiscordAuthView(DiscordOAuthMixin, APIView):
+    """Exchanges a Discord OAuth `code` for the user's Discord profile,
+    then either logs an existing linked user in, registers a brand-new
+    account (if nothing local matches at all), or rejects the attempt.
+
+    Deliberately never auto-links an existing, non-Discord account just
+    because its email matches the Discord profile's email: that would let
+    anyone who controls a Discord account with a given email silently take
+    over an existing password-based account without ever proving they know
+    its password. Linking has to be an explicit, separate action — see
+    `DiscordLinkView` below, which requires the person to already be
+    logged in on our side before it'll attach a Discord account.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [DiscordAuthRateThrottle]
+    # Same as EmailTokenObtainPairView: stale Authorization headers must not
+    # block issuing fresh credentials on this public login/register endpoint.
+    authentication_classes = []
+
+    def post(self, request):
+        code = request.data.get('code')
+        if not code:
+            return Response({'detail': 'Missing code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        redirect_uri = self._resolve_redirect_uri(request)
+        if redirect_uri is None:
+            return Response({'detail': 'Invalid redirect_uri.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, error = self._exchange_and_fetch(code, redirect_uri)
+        if error is not None:
+            return error
+
+        discord_id = str(profile['id'])
+        email = profile.get('email') or ''
+
+        user = User.objects.filter(discord_id=discord_id).first()
+
+        if user is None:
+            # No account linked to this Discord ID yet. If an account with
+            # the same email already exists, it was created a different
+            # way — refuse instead of silently linking it.
+            if email and User.objects.filter(email__iexact=email).exists():
+                return Response(
+                    {'detail': 'no_linked_account'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            user = self._create_user(discord_id, email, profile)
+
+        refresh = RefreshToken.for_user(user)
+        response = Response({'access': str(refresh.access_token)}, status=status.HTTP_200_OK)
+        set_refresh_cookie(response, refresh)
+        return response
+
+    def _create_user(self, discord_id, email, profile):
+        base_username = profile.get('username') or f'discord_{discord_id}'
+        username = base_username
+        suffix = 1
+        while User.objects.filter(username=username).exists():
+            suffix += 1
+            username = f'{base_username}{suffix}'
+
+        user = User(
+            username=username,
+            email=email,
+            discord_id=discord_id,
+            discord_username=profile.get('username') or '',
+        )
+        # No password was ever set on our side — Discord is the only way
+        # to log into this account, exactly as requested.
+        user.set_unusable_password()
+        user.save()
+        return user
+
+
+class DiscordLinkView(DiscordOAuthMixin, APIView):
+    """Attaches a Discord account to the *currently logged-in* user.
+
+    Requires the person to already hold a valid session — this is the
+    explicit, separate linking action referenced in `DiscordAuthView`'s
+    docstring. Refuses if that Discord account is already linked to a
+    different Scalaris account.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [DiscordAuthRateThrottle]
+
+    def post(self, request):
+        code = request.data.get('code')
+        if not code:
+            return Response({'detail': 'Missing code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        redirect_uri = self._resolve_redirect_uri(request)
+        if redirect_uri is None:
+            return Response({'detail': 'Invalid redirect_uri.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, error = self._exchange_and_fetch(code, redirect_uri)
+        if error is not None:
+            return error
+
+        discord_id = str(profile['id'])
+
+        existing = User.objects.filter(discord_id=discord_id).exclude(pk=request.user.pk).first()
+        if existing is not None:
+            return Response(
+                {'detail': 'Цей Discord-акаунт вже прив’язано до іншого користувача.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        request.user.discord_id = discord_id
+        request.user.discord_username = profile.get('username') or ''
+        request.user.save(update_fields=['discord_id', 'discord_username'])
+
+        return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+
+class DiscordUnlinkView(APIView):
+    """Detaches Discord from the current user.
+
+    Refused when Discord is the only way into the account (no usable
+    password set) — clearing it then would lock the person out entirely.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        if not user.discord_id:
+            return Response({'detail': 'Discord не підключено.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.has_usable_password():
+            return Response(
+                {'detail': 'Спочатку встанови пароль для акаунту — інакше ти втратиш доступ після відключення Discord.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.discord_id = None
+        user.discord_username = ''
+        user.save(update_fields=['discord_id', 'discord_username'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockView(APIView):
+    """Block or unblock another user. POST to block, DELETE to unblock.
+
+    Blocking is mutual and symmetric: a blocked pair stops seeing each other
+    on the map in both directions (enforced in the nearby queries), and each
+    can unblock the other independently — the relationship is a single row
+    keyed by (blocker, blocked), so there's no "who blocked whom" state to
+    get out of sync."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk=None):
+        if pk is not None and int(pk) == request.user.pk:
+            return Response(
+                {'detail': 'Не можна заблокувати самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        blocked_user = get_object_or_404(User, pk=pk)
+        _, created = Block.objects.get_or_create(
+            blocker=request.user, blocked=blocked_user
+        )
+        if not created:
+            return Response(
+                {'detail': 'Користувача вже заблоковано.'},
+                status=status.HTTP_200_OK,
+            )
+        return Response(status=status.HTTP_201_CREATED)
+
+    def delete(self, request, pk=None):
+        if pk is not None and int(pk) == request.user.pk:
+            return Response(
+                {'detail': 'Не можна розблокувати самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        blocked_user = get_object_or_404(User, pk=pk)
+        deleted, _ = Block.objects.filter(
+            blocker=request.user, blocked=blocked_user
+        ).delete()
+        if not deleted:
+            return Response(
+                {'detail': 'Користувача не було у списку заблокованих.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BlockedUsersListView(generics.ListAPIView):
+    """GET /api/users/blocked/ — список юзерів, яких я заблокував."""
+    serializer_class = UserPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        blocked_ids = Block.objects.filter(blocker=self.request.user).values_list('blocked_id', flat=True)
+        return User.objects.filter(pk__in=blocked_ids)
+
+
+class ReportUserView(APIView):
+    """POST — поскаржитись на юзера (причина + опційні деталі)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна поскаржитись на самого себе.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = get_object_or_404(User, pk=pk)
+        serializer = ReportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        Report.objects.create(reporter=request.user, reported=target, **serializer.validated_data)
+        return Response({'detail': 'Дякуємо, скаргу надіслано.'}, status=status.HTTP_201_CREATED)
 
 
 class MeView(generics.RetrieveUpdateAPIView):
@@ -181,3 +526,244 @@ class PasswordResetConfirmView(APIView):
             {'detail': 'Password has been reset successfully. You can now log in with your new password.'},
             status=status.HTTP_200_OK,
         )
+
+
+class SendFriendRequestView(APIView):
+    """POST /api/users/<pk>/friend-request/ — надіслати запит у друзі."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if pk == request.user.pk:
+            return Response(
+                {'detail': 'Не можна надіслати запит у друзі самому собі.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        target = get_object_or_404(User, pk=pk)
+
+        # Перевірка на блокування
+        if Block.objects.filter(blocker=target, blocked=request.user).exists():
+            return Response(
+                {'detail': 'Ви не можете надіслати запит цьому користувачу.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if Block.objects.filter(blocker=request.user, blocked=target).exists():
+            return Response(
+                {'detail': 'Ви заблокували цього користувача. Розблокуйте його перед тим як додавати у друзі.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Перевірка чи не є вони вже друзями
+        if request.user.friends.filter(pk=pk).exists():
+            return Response(
+                {'detail': 'Ви вже друзі.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Якщо інший користувач уже надіслав запит — приймаємо автоматично
+        incoming = FriendRequest.objects.filter(from_user=target, to_user=request.user).first()
+        if incoming:
+            request.user.friends.add(target)
+            incoming.delete()
+            FriendRequest.objects.filter(from_user=request.user, to_user=target).delete()
+            return Response(
+                {'detail': 'Запит прийнято!', 'friendship_status': 'friends'},
+                status=status.HTTP_200_OK,
+            )
+
+        friend_request, created = FriendRequest.objects.get_or_create(
+            from_user=request.user,
+            to_user=target,
+        )
+        payload = {
+            'detail': 'Запит надіслано!' if created else 'Запит уже надіслано.',
+            'friend_request_id': friend_request.id,
+            'friendship_status': 'request_sent',
+        }
+
+        # Real-time notification via WebSocket
+        try:
+            from apps.activities.models import Invitation
+            fr_count = FriendRequest.objects.filter(to_user=target).count()
+            inv_count = Invitation.objects.filter(to_user=target, status='pending').count()
+            notify_user(target.pk, fr_count + inv_count)
+        except Exception:
+            pass
+
+        return Response(payload, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class AcceptFriendRequestView(APIView):
+    """POST /api/friend-requests/<pk>/accept/ — прийняти запит (pk - ID запиту)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        friend_request = get_object_or_404(FriendRequest, pk=pk, to_user=request.user)
+        from_user = friend_request.from_user
+
+        # Додаємо один одного в друзі
+        request.user.friends.add(from_user)
+
+        # Видаляємо виконаний запит
+        friend_request.delete()
+
+        # Видаляємо зустрічний запит, якщо такий випадково є
+        FriendRequest.objects.filter(from_user=request.user, to_user=from_user).delete()
+
+        # Real-time notification: update both users' notification counts
+        try:
+            from apps.activities.models import Invitation
+            # Notify the original sender (their request was accepted → count decreases)
+            fr_count = FriendRequest.objects.filter(to_user=from_user).count()
+            inv_count = Invitation.objects.filter(to_user=from_user, status='pending').count()
+            notify_user(from_user.pk, fr_count + inv_count)
+            # Notify the accepting user too (their received requests changed)
+            fr_count_me = FriendRequest.objects.filter(to_user=request.user).count()
+            inv_count_me = Invitation.objects.filter(to_user=request.user, status='pending').count()
+            notify_user(request.user.pk, fr_count_me + inv_count_me)
+        except Exception:
+            pass
+
+        return Response({'detail': 'Запит прийнято!'}, status=status.HTTP_200_OK)
+
+
+class RejectFriendRequestView(APIView):
+    """DELETE /api/friend-requests/<pk>/reject/ — відхилити/скасувати запит (pk - ID запиту)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        # Дозволяємо видалити запит як тому, хто отримав, так і тому, хто надіслав
+        friend_request = get_object_or_404(
+            FriendRequest,
+            Q(to_user=request.user) | Q(from_user=request.user),
+            pk=pk
+        )
+
+        # Determine which user to notify (the one who didn't trigger the delete)
+        other_user = friend_request.from_user if friend_request.to_user == request.user else friend_request.to_user
+
+        friend_request.delete()
+
+        # Real-time notification
+        try:
+            from apps.activities.models import Invitation
+            fr_count = FriendRequest.objects.filter(to_user=other_user).count()
+            inv_count = Invitation.objects.filter(to_user=other_user, status='pending').count()
+            notify_user(other_user.pk, fr_count + inv_count)
+        except Exception:
+            pass
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RemoveFriendView(APIView):
+    """DELETE /api/users/<pk>/friend/ — видалити з друзів (pk - ID юзера)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        target = get_object_or_404(User, pk=pk)
+        request.user.friends.remove(target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FriendsListView(generics.ListAPIView):
+    """GET /api/me/friends/ — мої друзі."""
+    serializer_class = UserPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.friends.all()
+
+
+class SentFriendRequestsView(generics.ListAPIView):
+    """GET /api/me/friend-requests/sent/ — надіслані мною запити."""
+    serializer_class = FriendRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.sent_friend_requests.select_related('to_user').all()
+
+
+class ReceivedFriendRequestsView(generics.ListAPIView):
+    """GET /api/me/friend-requests/received/ — вхідні запити."""
+    serializer_class = FriendRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.received_friend_requests.select_related('from_user').all()
+
+
+# ==========================================
+#          СИСТЕМА СПОВІЩЕНЬ
+# ==========================================
+
+class NotificationsView(APIView):
+    """GET /api/users/me/notifications/ — об'єднаний список сповіщень:
+    вхідні запити у друзі + запрошення на активності (status=pending).
+    Повертає єдиний формат: { id, type, from_user, created_at, activity?, detail? }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.activities.models import Invitation
+
+        notifications = []
+
+        # --- Friend requests ---
+        friend_requests = FriendRequest.objects.filter(
+            to_user=request.user
+        ).select_related('from_user').order_by('-created_at')
+
+        for fr in friend_requests:
+            notifications.append({
+                'id': f'friend_request_{fr.id}',
+                'type': 'friend_request',
+                'from_user': UserPublicSerializer(fr.from_user, context={'request': request}).data,
+                'created_at': fr.created_at.isoformat(),
+                'activity': None,
+            })
+
+        # --- Activity invitations ---
+        invitations = Invitation.objects.filter(
+            to_user=request.user,
+            status=Invitation.Status.PENDING,
+        ).select_related('from_user', 'activity', 'activity__creator').order_by('-created_at')
+
+        for inv in invitations:
+            notifications.append({
+                'id': f'invitation_{inv.id}',
+                'type': 'activity_invitation',
+                'from_user': UserPublicSerializer(inv.from_user, context={'request': request}).data,
+                'created_at': inv.created_at.isoformat(),
+                'activity': {
+                    'id': inv.activity.id,
+                    'title': inv.activity.title,
+                    'category': inv.activity.category,
+                    'started_at': inv.activity.started_at.isoformat(),
+                    'latitude': inv.activity.point.y,
+                    'longitude': inv.activity.point.x,
+                },
+            })
+
+        # Sort all notifications by created_at descending
+        notifications.sort(key=lambda n: n['created_at'], reverse=True)
+
+        return Response(notifications)
+
+
+class NotificationsCountView(APIView):
+    """GET /api/users/me/notifications/count/ — кількість непрочитаних сповіщень."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.activities.models import Invitation
+
+        friend_request_count = FriendRequest.objects.filter(to_user=request.user).count()
+        invitation_count = Invitation.objects.filter(
+            to_user=request.user,
+            status=Invitation.Status.PENDING,
+        ).count()
+
+        return Response({
+            'count': friend_request_count + invitation_count,
+        })

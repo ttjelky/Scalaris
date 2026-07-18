@@ -16,15 +16,223 @@
   left: 0;
   right: 0;
   z-index: 700;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row;
+  align-items: start;
+  row-gap: 14px;
   padding: 16px 18px;
   padding-top: max(16px, env(safe-area-inset-top));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar > * {
+  pointer-events: auto;
+}
+
+.activityPills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  padding-bottom: 2px;
+}
+
+.activityPills::-webkit-scrollbar {
+  display: none;
+}
+
+.activityPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 9px 15px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-ink, #0b0b0c);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), border-color 0.15s var(--ease-track, ease),
+    transform 0.15s var(--ease-track, ease);
+}
+
+.activityPill:active {
+  transform: scale(0.95);
+}
+
+.activityPill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.activityPill:disabled:active {
+  transform: none;
+}
+
+.activityPillActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+}
+
+.visibilityButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-ink, #0b0b0c);
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
+  transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
+    opacity 0.2s var(--ease-track, ease);
+}
+
+.visibilityButton[aria-pressed='true'],
+.visibilityButton[aria-pressed='false'] {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--color-line, #e5e5e5);
+  color: var(--color-ink, #0b0b0c);
+}
+
+/* Desktop: highlight green while the pointer is actually hovering. */
+@media (hover: hover) and (pointer: fine) {
+  .visibilityButton:hover:not(:disabled) {
+    background: var(--color-accent, #c6ff3d);
+    border-color: var(--color-accent, #c6ff3d);
+    color: var(--color-ink, #0b0b0c);
+  }
+}
+
+/* Touch: flash green only while the finger is down — :active releases on
+   touchend, unlike :hover which would otherwise "stick" after tapping. */
+.visibilityButton:active:not(:disabled) {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  transform: scale(0.92);
+}
+
+.visibilityButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rightSidebar {
+  display: none;
+  position: fixed;
+  top: 18px;
+  right: 14px;
+  z-index: 700;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.friendsFilterButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--color-ink, #0b0b0c);
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
+  transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
+    border-color 0.2s var(--ease-track, ease);
+  padding: 0;
+}
+
+.friendsFilterDots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+}
+
+.friendsFilterDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.friendsFilterDot:first-child {
+  background: #ff6b6b;
+}
+
+.friendsFilterDot:nth-child(2) {
+  background: #ffa94d;
+}
+
+.friendsFilterDot:nth-child(3) {
+  background: #ffd43b;
+}
+
+.friendsFilterButtonActive {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .friendsFilterButton:hover:not(:disabled) {
+    background: var(--color-accent, #c6ff3d);
+    border-color: var(--color-accent, #c6ff3d);
+    color: var(--color-ink, #0b0b0c);
+  }
+}
+
+.friendsFilterButton:active:not(:disabled) {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  transform: scale(0.92);
+}
+
+.filterBadge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px);
+  transform: translateX(-50%);
+  z-index: 601;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .greetingBlock {
@@ -33,9 +241,15 @@
   gap: 10px;
   color: var(--color-ink, #0b0b0c);
   text-decoration: none;
-  border-radius: var(--radius-pill, 999px);
-  padding: 8px 4px;
-  margin: -8px -4px;
+  border-radius: 999px;
+  padding: 11px 18px;
+  min-height: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(20, 20, 20, 0.08);
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   transition: opacity 0.15s var(--ease-track, ease);
 }
 
@@ -84,14 +298,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  border-radius: 999px;
   border: 1px solid var(--color-line, #e5e5e5);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--color-ink, #0b0b0c);
   flex-shrink: 0;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease);
 }
 
@@ -154,12 +370,8 @@
 }
 
 @keyframes run {
-  0% {
-    left: 0%;
-  }
-  100% {
-    left: 100%;
-  }
+  0% { left: 0%; }
+  100% { left: 100%; }
 }
 
 .sheet {
@@ -175,28 +387,27 @@
   border-radius: 28px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.16);
   padding: 16px 18px max(16px, env(safe-area-inset-bottom));
-  /* Expanded is the default shape: a tall panel with plenty of room for the
-     list. Collapsed doesn't need its own max-height override — its content
-     shrinks to ~0 via .collapsibleContent, so it naturally sits well under
-     this cap regardless. */
   max-height: 80dvh;
   overflow-y: auto;
-  /* Smooth, no-overshoot deceleration for size/shape changes (an overshoot
-     here would make list content look like it's briefly clipping), but a
-     springy little overshoot on the drag-release snap-back (transform) for
-     a bit of life. */
-  transition: max-height 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    padding 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    border-radius 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    padding 0.34s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.34s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* While actively dragging, kill the transition so the sheet tracks the
-   pointer 1:1 instead of lagging behind it. Also drop the blur strength
-   and promote the element to its own compositor layer — recomputing a
-   20px backdrop-filter blur on every dragged frame was the main source
-   of the jank/heaviness. */
+.sheetClosing {
+  max-height: 108px;
+  overflow: hidden;
+  padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 1, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 1, 1), border-radius 0.28s cubic-bezier(0.4, 0, 1, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* While actively dragging, the transform is written straight to the DOM
+   node (see applyDragTransform in Home.jsx), so the CSS transition must be
+   switched off — otherwise it fights the per-frame updates and the sheet
+   feels sluggish. */
 .sheetDragging {
   transition: none;
   backdrop-filter: blur(8px);
@@ -204,12 +415,20 @@
   will-change: transform;
 }
 
-/* Collapsed = small pill badge that gets out of the map's way. The content
-   below the header shrinks via .collapsibleContent, this just restyles
-   the shell + hero row to a compact pill. */
+.sheetDragging .heroText,
+.sheetDragging .userList {
+  transition: none;
+}
+
+/* Small badge state: only the handle + hero row stay visible. The text and
+   list below animate out via their own max-height/opacity transitions
+   (see .heroText / .userList) instead of snapping with display:none, so the
+   whole sheet reads as one continuous collapse rather than a hard cut. */
 .sheetCollapsed {
+  max-height: 108px;
   padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
   border-radius: 26px;
+  overflow: hidden;
 }
 
 .sheetCollapsed .heroRow {
@@ -217,7 +436,7 @@
 }
 
 .sheetCollapsed .heroTitle {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .sheetCollapsed .heroBadge {
@@ -225,36 +444,57 @@
   height: 48px;
 }
 
+.sheetCollapsed .sheetBackBtn {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+}
+
+.sheetCollapsed .heroBadgeBlock {
+  gap: 2px;
+}
+
+.sheetCollapsed .heroRowParticipants {
+  gap: 2px;
+}
+
+.sheetCollapsed .heroRowParticipantsLabel {
+  font-size: 0.45rem;
+}
+
+.sheetCollapsed .heroParticipantsCircle {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+}
+
 .sheetCollapsed .heroBadgeValue {
   font-size: 1.05rem;
 }
 
-.sheetCollapsed .heroBadgeLabel {
-  font-size: 0.55rem;
+.sheetCollapsed .heroBadgeValueClock {
+  font-size: 0.68rem;
 }
 
-/* Handle + hero row: tapping anywhere here (without dragging) toggles
-   collapsed/expanded, in addition to the handle's drag gesture. */
+.sheetCollapsed .heroBadgeLabel {
+  font-size: 0.5rem;
+}
+
+/* Peek state should only ever show the handle + hero row. The participants
+   title/list/leave button below have no collapse animation of their own
+   (unlike .heroText / .userList), so without this they'd otherwise peek
+   out from under the clipped max-height as a sliver of text. */
+.sheetCollapsed .ongoingParticipantsTitle,
+.sheetCollapsed .ongoingParticipantsList,
+.sheetCollapsed .checkpointProgress,
+.sheetCollapsed .leaveBtn {
+  display: none;
+}
+
 .sheetHeader {
   cursor: pointer;
-}
-
-/* Collapses the hero-row's siblings smoothly by animating an intrinsic
-   grid row (1fr -> 0fr) instead of toggling display or max-height, so the
-   box height and the content height always stay in lockstep. */
-.collapsibleContent {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.34s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.collapsibleContentHidden {
-  grid-template-rows: 0fr;
-}
-
-.collapsibleInner {
-  overflow: hidden;
-  min-height: 0;
+  touch-action: none;
+  user-select: none;
 }
 
 .sheetHandle {
@@ -264,7 +504,6 @@
   background: var(--color-line, #e5e5e5);
   background-clip: content-box;
   margin: -10px auto 6px;
-  /* Bigger invisible hit area than the visible bar makes it easier to grab. */
   padding: 10px 24px;
   box-sizing: content-box;
   cursor: grab;
@@ -286,6 +525,23 @@
   gap: 16px;
 }
 
+.heroRowParticipants {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.heroRowParticipantsLabel {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-soft, #6b6b70);
+  line-height: 1;
+}
+
 .kicker {
   margin: 0 0 4px;
   font-size: 0.7rem;
@@ -301,15 +557,53 @@
   font-weight: 800;
   font-stretch: condensed;
   text-transform: uppercase;
-  font-size: clamp(24px, 7vw, 32px);
+  font-size: clamp(28px, 8vw, 36px);
   line-height: 1;
   letter-spacing: -0.01em;
   color: var(--color-ink, #0b0b0c);
+  text-align: center;
+}
+
+.heroTitleBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.heroTitleBlockLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.heroTitleBlockLeft .heroTitle {
+  text-align: left;
+}
+
+.heroTitleBlockLeft .kicker {
+  text-align: left;
+}
+
+.heroDistance {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+  text-align: center;
+}
+
+.sheetCollapsed .heroDistance {
+  font-size: 0.7rem;
 }
 
 .heroBadge {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-width: 64px;
@@ -320,12 +614,20 @@
   flex-shrink: 0;
 }
 
+.heroBadgeBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
 .heroBadgeLabel {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-top: 2px;
+  color: var(--color-ink-soft, #6b6b70);
+  line-height: 1;
 }
 
 .heroText {
@@ -334,12 +636,35 @@
   line-height: 1.4;
   color: var(--color-ink-soft, #6b6b70);
   max-width: 42ch;
+  max-height: 60px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.22s ease, margin 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheetCollapsed .heroText {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
 }
 
 .userList {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.02s,
+    opacity 0.2s ease;
+}
+
+.sheetCollapsed .userList {
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.15s ease;
 }
 
 .userCard {
@@ -352,6 +677,7 @@
   color: inherit;
   text-decoration: none;
   transition: background 0.15s var(--ease-track, ease);
+  animation: cardIn 0.3s var(--ease-track, ease) both;
 }
 
 .userCard:hover {
@@ -368,6 +694,14 @@
   background: var(--color-ink, #0b0b0c);
   color: var(--color-bg, #ffffff);
   font-weight: 800;
+  flex-shrink: 0;
+}
+
+.userAvatarImg {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  object-fit: cover;
   flex-shrink: 0;
 }
 
@@ -394,33 +728,38 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .laneDot {
-    animation: none;
-  }
-  .pulseDotActive {
-    animation: none;
-  }
-  .heroBadgeValue {
-    animation: none;
-  }
+  .laneDot,
+  .heroBadgeValue,
   .userCard {
     animation: none;
   }
+
   .scrim,
-  .sheet {
+  .sheet,
+  .heroText,
+  .userList {
     transition-duration: 0.01ms !important;
   }
 }
 
 @media (min-width: 480px) {
-  .sheet {
-    max-width: 480px;
-    margin: 0 auto;
+  .sheet { max-width: 480px; margin: 0 auto; }
+}
+
+@media (min-width: 1024px) {
+  .recenterButton {
+    height: 42px;
+    min-height: 42px;
   }
 }
 
-/* Soft dimming layer behind the expanded sheet — gives it real depth over
-   the map and doubles as a big "tap anywhere to collapse" target. */
+@media (max-width: 1023px) {
+  .recenterButton {
+    height: 42px;
+    min-height: 42px;
+  }
+}
+
 .scrim {
   position: absolute;
   inset: 0;
@@ -436,21 +775,10 @@
   pointer-events: auto;
 }
 
-/* The count "pops" whenever it changes, instead of silently updating —
-   makes new arrivals feel noticed. Retriggered by remounting the span
-   with a fresh `key` in JSX. */
 @keyframes badgePop {
-  0% {
-    transform: scale(0.55);
-    opacity: 0;
-  }
-  65% {
-    transform: scale(1.18);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(0.55); opacity: 0; }
+  65% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); }
 }
 
 .heroBadgeValue {
@@ -461,21 +789,9 @@
   animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Cards cascade in one after another when the sheet opens, instead of
-   appearing all at once. */
 @keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.userCard {
-  animation: cardIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .userCard:nth-child(1) {
@@ -495,4 +811,349 @@
 }
 .userCard:nth-child(n + 6) {
   animation-delay: 0.28s;
+}
+
+.sheetBackBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.heroParticipantsCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sheetBackSpacer {
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.formLoading {
+  padding: 24px 4px;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Smaller, tabular variant of .heroBadgeValue used for the live "mm:ss"
+   clock so longer durations (e.g. "1:02:07") still fit inside the circle. */
+.heroBadgeValueClock {
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  animation: none;
+}
+
+.ongoingWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.zoneInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-line, #e5e5e5);
+}
+
+.zoneInfoLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.zoneInfoValue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+}
+
+.ongoingParticipantsTitle {
+  margin: 4px 0 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.questLeaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.questLeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 16px);
+  background: var(--color-surface, #f7f7f5);
+  border: 1.5px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.questPlace1 {
+  background: rgba(198, 255, 61, 0.15);
+  border-color: rgba(198, 255, 61, 0.4);
+}
+
+.questPlace2 {
+  background: rgba(192, 192, 192, 0.12);
+  border-color: rgba(192, 192, 192, 0.3);
+}
+
+.questPlace3 {
+  background: rgba(205, 127, 50, 0.1);
+  border-color: rgba(205, 127, 50, 0.25);
+}
+
+.questPlace {
+  font-size: 1.1rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.questLeaderAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.questLeaderAvatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.questLeaderName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.questLeaderKm {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink, #0b0b0c);
+}
+
+.ongoingParticipantsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ongoingParticipant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm, 16px);
+  background: var(--color-surface, #f7f7f5);
+}
+
+.ongoingParticipantAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.ongoingParticipantAvatarImg {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.ongoingParticipantName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ongoingParticipantStatus {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.statusAccepted,
+.statusArrived {
+  background: rgba(198, 255, 61, 0.4);
+  color: var(--color-ink, #0b0b0c);
+}
+
+.statusPending {
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.statusDeclined,
+.statusLeft {
+  background: rgba(192, 35, 57, 0.12);
+  color: #c02339;
+}
+
+.checkpointProgress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.checkpointStep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-line, #ececea);
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 0.82rem;
+  font-weight: 800;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.checkpointStepPassed {
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  box-shadow: 0 2px 8px rgba(198, 255, 61, 0.4);
+}
+
+.checkpointStepNumber {
+  line-height: 1;
+}
+
+.leaveBtn {
+  margin-top: 18px;
+  width: 100%;
+  background: transparent;
+  border: 1.5px solid rgba(192, 35, 57, 0.35);
+  color: #c02339;
+  padding: 13px 18px;
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.leaveBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.leaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .leaveBtn:hover:not(:disabled) {
+    background: rgba(192, 35, 57, 0.08);
+  }
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 24px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 1300;
+}
+
+/* --- Mobile: column sidebar on the right --- */
+@media (max-width: 768px) {
+  .rightSidebar {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    top: max(16px, env(safe-area-inset-top));
+    right: 18px;
+  }
+
+  .topbarLeft > *:not(.greetingBlock) {
+    display: none;
+  }
+
+  .activityPills {
+    max-width: 55vw;
+    padding-left: 4px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+
+  .sheet {
+    z-index: 750;
+  }
 }

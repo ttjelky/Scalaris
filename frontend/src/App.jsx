@@ -9,6 +9,9 @@ import PasswordResetConfirm from './pages/Auth/PasswordResetConfirm';
 import Home from './pages/Home/Home';
 import WelcomeScreen from './pages/Welcome/WelcomeScreen';
 import Profile from './pages/Profile/Profile';
+import BlockedUsers from './pages/BlockedUsers/BlockedUsers';
+import Notifications from './pages/Notifications/Notifications';
+import DiscordCallback from './pages/OAuth/DiscordCallback';
 import './styles/tokens.css';
 
 function App() {
@@ -30,7 +33,17 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:id" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/blocked-users" element={<BlockedUsers />} />
+          <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
         </Route>
+
+        {/* Колбек Discord OAuth не гейтиться жодним з гвардів: сюди
+            повертається і анонімний юзер (вхід/реєстрація через кнопку
+            на Login/Register), і вже залогінений (прив'язка з профілю).
+            Сам компонент дивиться на isAuthenticated і сам вирішує, який
+            запит зробити — див. DiscordCallback.jsx. */}
+        <Route path="/oauth/discord/callback" element={<DiscordCallback />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

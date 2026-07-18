@@ -16,6 +16,12 @@ const TRANSLATIONS = [
   [/this field may not be blank/i, 'Це поле обов’язкове.'],
   [/this field is required/i, 'Це поле обов’язкове.'],
   [/enter a valid email/i, 'Введи коректну email-адресу.'],
+  [
+    /^no_linked_account$/,
+    'До цього Discord-акаунту не прив’язано жодного акаунту Scalaris. Увійди електронною поштою й паролем — або зареєструйся.',
+  ],
+  [/invalid_grant/i, 'Код авторизації Discord уже використано або прострочений. Спробуй увійти ще раз.'],
+  [/invalid redirect_uri/i, 'Невідповідний redirect URI. Перевір налаштування Discord OAuth.'],
 ];
 
 // Ключі полів, які бекенд називає інакше, ніж стейт у формі

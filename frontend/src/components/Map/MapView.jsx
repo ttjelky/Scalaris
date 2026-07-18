@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useState } from 'react';
-import { MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { Circle, MapContainer, Marker, Popup, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -13,11 +13,141 @@ const ownIcon = L.divIcon({
   iconAnchor: [8, 8],
 });
 
-const personIcon = L.divIcon({
-  className: `leaflet-dot-icon ${styles.personMarker}`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+const PERSON_AVATAR_SIZE = 26;
+const ACCEPTED_AVATAR_SIZE = 30;
+
+// Builds a divIcon showing the person's avatar photo instead of a plain
+// dot. If there's no avatar URL, or the image fails to load (broken link,
+// offline, etc.), it falls back to a circle with the first letter of the
+// username — same pattern as the fallback in Profile.jsx. The onerror is
+// inlined since divIcon content lives outside React's tree.
+function makePersonIcon(person, isAccepted) {
+  const size = isAccepted ? ACCEPTED_AVATAR_SIZE : PERSON_AVATAR_SIZE;
+  const ringClass = isAccepted ? styles.personAvatarAccepted : '';
+  const initial = escapeHtml((person.username || '?').slice(0, 1).toUpperCase());
+  const fallback = `<span class="${styles.personAvatarFallback}">${initial}</span>`;
+  const avatarUrl = person.avatar ? escapeHtml(person.avatar) : null;
+
+  const html = avatarUrl
+    ? `<div class="${styles.personAvatarWrap} ${ringClass}">
+         <img src="${avatarUrl}" class="${styles.personAvatarImg}" alt=""
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+         <span class="${styles.personAvatarFallback}" style="display:none">${initial}</span>
+       </div>`
+    : `<div class="${styles.personAvatarWrap} ${ringClass}">${fallback}</div>`;
+
+  return L.divIcon({
+    className: 'leaflet-avatar-icon',
+    html,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+const CLUSTER_SIZE = 34;
+
+// Builds a divIcon for a group of people who are standing too close
+// together on screen to show as separate avatars — a count badge instead
+// of a photo. Rings accent-colored if anyone inside accepted the gathering.
+function makeClusterIcon(count, hasAccepted) {
+  const ringClass = hasAccepted ? styles.clusterAccepted : '';
+  return L.divIcon({
+    className: 'leaflet-cluster-icon',
+    html: `<div class="${styles.clusterMarker} ${ringClass}">${count}</div>`,
+    iconSize: [CLUSTER_SIZE, CLUSTER_SIZE],
+    iconAnchor: [CLUSTER_SIZE / 2, CLUSTER_SIZE / 2],
+  });
+}
+
+// How close two people need to be on screen (in pixels, not meters) before
+// they're folded into one cluster marker. Pixel-based rather than
+// distance-based on purpose: at low zoom lots of real-world meters map to
+// a few screen pixels, so the "are these dots overlapping" question is
+// inherently a screen-space one, and it naturally re-splits as you zoom in.
+const CLUSTER_PIXEL_RADIUS = 28;
+
+// Greedy single-link grouping: walk the list, and any not-yet-used point
+// within radiusPx of the current seed joins its group. Good enough for a
+// few dozen nearby users — no need for a full clustering library here.
+function clusterPeople(map, people, radiusPx) {
+  const points = people.map((person) => ({
+    person,
+    pt: map.latLngToContainerPoint([person.latitude, person.longitude]),
+  }));
+
+  const used = new Array(points.length).fill(false);
+  const groups = [];
+
+  for (let i = 0; i < points.length; i += 1) {
+    if (used[i]) continue;
+    used[i] = true;
+    const group = [points[i]];
+
+    for (let j = i + 1; j < points.length; j += 1) {
+      if (used[j]) continue;
+      const dx = points[i].pt.x - points[j].pt.x;
+      const dy = points[i].pt.y - points[j].pt.y;
+      if (Math.sqrt(dx * dx + dy * dy) <= radiusPx) {
+        used[j] = true;
+        group.push(points[j]);
+      }
+    }
+
+    groups.push(group);
+  }
+
+  return groups;
+}
+
+// The gathering point itself — bigger, pulsing, visually distinct from
+// both "me" and "other people" dots.
+const gatheringIcon = L.divIcon({
+  className: `leaflet-dot-icon ${styles.gatheringMarker}`,
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
 });
+
+const CHECKPOINT_SIZE = 30;
+
+function makeCheckpointIcon(order, isCurrent, isPassed) {
+  let className = styles.checkpointMarker;
+  if (isCurrent) className += ` ${styles.checkpointMarkerCurrent}`;
+  else if (isPassed) className += ` ${styles.checkpointMarkerPassed}`;
+  return L.divIcon({
+    className: 'leaflet-checkpoint-icon',
+    html: `<div class="${className}">${order}</div>`,
+    iconSize: [CHECKPOINT_SIZE, CHECKPOINT_SIZE],
+    iconAnchor: [CHECKPOINT_SIZE / 2, CHECKPOINT_SIZE / 2],
+  });
+}
+
+function CheckpointLayer({ checkpoints, currentCheckpointId, passedCheckpointIds }) {
+  if (!checkpoints || checkpoints.length === 0) return null;
+
+  return checkpoints.map((cp) => {
+    const isCurrent = cp.id === currentCheckpointId;
+    const isPassed = passedCheckpointIds.includes(cp.id);
+    return (
+      <Marker
+        key={`cp-${cp.id}`}
+        position={[cp.latitude, cp.longitude]}
+        icon={makeCheckpointIcon(cp.order, isCurrent, isPassed)}
+      >
+        {!isCurrent && (
+          <Tooltip permanent direction="top" offset={[0, -18]} className="map-checkpoint-label">
+            #{cp.order}
+          </Tooltip>
+        )}
+      </Marker>
+    );
+  });
+}
 
 const INITIAL_ZOOM = 14;
 // Below this zoom level, dots are packed close together and a nickname
@@ -25,11 +155,22 @@ const INITIAL_ZOOM = 14;
 // there's enough space between points to actually read them.
 const LABEL_ZOOM_THRESHOLD = 15;
 
+// Auto-centers the map exactly once — when the very first GPS fix comes
+// in. `position` keeps updating every few seconds from watchPosition, but
+// re-centering on every one of those ticks was yanking the map back mid-
+// drag on mobile, making it impossible to pan around. Manual re-centering
+// afterwards is handled by the "show my location" button (see recenterToMe
+// in Home.jsx), which drives the map ref directly.
 function RecenterOnMove({ position }) {
   const map = useMap();
+  const hasCenteredOnce = useRef(false);
+
   useEffect(() => {
-    if (position) map.setView(position, map.getZoom(), { animate: true });
+    if (!position || hasCenteredOnce.current) return;
+    hasCenteredOnce.current = true;
+    map.setView(position, map.getZoom(), { animate: true });
   }, [position, map]);
+
   return null;
 }
 
@@ -42,37 +183,340 @@ function ZoomWatcher({ onZoomChange }) {
   return null;
 }
 
-// `ref` is forwarded straight onto react-leaflet's MapContainer, so callers
-// keep using it exactly as before (e.g. mapRef.current.setView(...)).
-const MapView = forwardRef(function MapView({ position, nearbyUsers, className }, ref) {
-  const [zoom, setZoom] = useState(INITIAL_ZOOM);
-  const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
+// Small avatar used inside the cluster popup list — same fallback pattern
+// as the map markers (initial letter if there's no photo or it fails to
+// load), but as a normal React element since popup content lives inside
+// React's tree, unlike the divIcon HTML strings above.
+function ClusterPopupAvatar({ person }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (person.username || '?').slice(0, 1).toUpperCase();
+
+  if (!person.avatar || broken) {
+    return (
+      <span className={styles.clusterPopupAvatarFallback}>{initial}</span>
+    );
+  }
 
   return (
-    <MapContainer
-      ref={ref}
-      center={position}
-      zoom={INITIAL_ZOOM}
-      zoomControl={false}
-      className={className || styles.map}
-    >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-      />
-      <ZoomWatcher onZoomChange={setZoom} />
-      <Marker position={position} icon={ownIcon} />
-      {nearbyUsers.map((person) => (
-        <Marker key={person.id} position={[person.latitude, person.longitude]} icon={personIcon}>
+    <img
+      src={person.avatar}
+      alt=""
+      className={styles.clusterPopupAvatarImg}
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
+// Renders nearbyUsers as either single avatar markers (unchanged behavior)
+// or, when several people are close enough together on screen to overlap,
+// as one cluster marker showing a count. Clicking a cluster opens a popup
+// listing everyone in that spot instead of trying to show every avatar.
+// Clusters are recomputed on pan/zoom (screen-space distance depends on
+// both) and whenever the underlying people list changes.
+function ClusterLayer({ people, acceptedIds, showLabels, onSelectPerson }) {
+  const map = useMap();
+  const [groups, setGroups] = useState([]);
+
+  useEffect(() => {
+    const recompute = () => setGroups(clusterPeople(map, people, CLUSTER_PIXEL_RADIUS));
+    recompute();
+    map.on('zoomend', recompute);
+    map.on('moveend', recompute);
+    return () => {
+      map.off('zoomend', recompute);
+      map.off('moveend', recompute);
+    };
+  }, [map, people]);
+
+  return groups.map((group) => {
+    if (group.length === 1) {
+      const { person } = group[0];
+      const isAccepted = acceptedIds.includes(person.id);
+      return (
+        <Marker
+          key={person.id}
+          position={[person.latitude, person.longitude]}
+          icon={makePersonIcon(person, isAccepted)}
+          eventHandlers={{ click: () => onSelectPerson(person) }}
+        >
           {showLabels && (
             <Tooltip permanent direction="top" offset={[0, -12]} className="map-user-label">
               {person.username}
             </Tooltip>
           )}
         </Marker>
-      ))}
-      <RecenterOnMove position={position} />
-    </MapContainer>
+      );
+    }
+
+    const clusterId = group
+      .map(({ person }) => person.id)
+      .sort()
+      .join('-');
+    const centerLat = group.reduce((sum, { person }) => sum + person.latitude, 0) / group.length;
+    const centerLng = group.reduce((sum, { person }) => sum + person.longitude, 0) / group.length;
+    const hasAccepted = group.some(({ person }) => acceptedIds.includes(person.id));
+
+    return (
+      <Marker
+        key={clusterId}
+        position={[centerLat, centerLng]}
+        icon={makeClusterIcon(group.length, hasAccepted)}
+      >
+        <Popup className={styles.clusterPopup} closeButton={false}>
+          <div className={styles.clusterPopupList}>
+            {group.map(({ person }) => (
+              <button
+                key={person.id}
+                type="button"
+                className={styles.clusterPopupItem}
+                onClick={() => onSelectPerson(person)}
+              >
+                <span
+                  className={`${styles.clusterPopupAvatarWrap} ${
+                    acceptedIds.includes(person.id) ? styles.personAvatarAccepted : ''
+                  }`}
+                >
+                  <ClusterPopupAvatar person={person} />
+                </span>
+                <span className={styles.clusterPopupName}>{person.username}</span>
+              </button>
+            ))}
+          </div>
+        </Popup>
+      </Marker>
+    );
+  });
+}
+
+// Small floating card shown when a name is tapped in a cluster popup — just
+// the avatar, the username, and a way to jump to their full profile. Sits
+// above the map itself (rendered as a sibling of MapContainer, not inside
+// it) so it isn't clipped by Leaflet's panes or tied to marker positioning.
+function ProfileMiniCard({ person, onClose, onViewProfile }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (person.username || '?').slice(0, 1).toUpperCase();
+
+  return (
+    <div className={styles.profileCardBackdrop} onClick={onClose}>
+      <div className={styles.profileCard} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.profileCardAvatarWrap}>
+          {person.avatar && !broken ? (
+            <img
+              src={person.avatar}
+              alt=""
+              className={styles.profileCardAvatarImg}
+              onError={() => setBroken(true)}
+            />
+          ) : (
+            <span className={styles.profileCardAvatarFallback}>{initial}</span>
+          )}
+        </div>
+        <div className={styles.profileCardName}>{person.username}</div>
+        <button
+          type="button"
+          className={styles.profileCardButton}
+          onClick={() => {
+            onViewProfile?.(person);
+            onClose();
+          }}
+        >
+          Перейти в профіль
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// `ref` is forwarded straight onto react-leaflet's MapContainer, so callers
+// keep using it exactly as before (e.g. mapRef.current.setView(...)).
+//
+// `gathering` (optional): { point: [lat, lng], title, acceptedIds } for the
+// currently ongoing "Збір". When present, shows the gathering point, a road
+// route from `position` to it, and highlights nearbyUsers whose id is in
+// acceptedIds.
+//
+// `zones` (optional): array of zone objects visible to everyone on the map.
+//
+// `onZoneClick` (optional): called with a zone object when a zone circle is clicked.
+// `checkpoints` (optional): { items, currentId, passedIds, userPosition }
+// For cross activities — shows all checkpoints as numbered markers on the
+// map, highlights the current one, and draws a route from the user to it.
+//
+// `onViewProfile` (optional): called with a person object when someone taps
+// "Перейти в профіль" on the mini profile card opened from a cluster popup.
+// Left to the caller since navigation (route, modal, etc.) is app-specific.
+const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, checkpoints, zones, onZoneClick, className, onViewProfile }, ref) {
+  const [zoom, setZoom] = useState(INITIAL_ZOOM);
+  const showLabels = zoom >= LABEL_ZOOM_THRESHOLD;
+  const acceptedIds = gathering?.acceptedIds || [];
+  const [profilePerson, setProfilePerson] = useState(null);
+
+  const cpItems = useMemo(() => checkpoints?.items || [], [checkpoints]);
+  const cpCurrentId = checkpoints?.currentId || null;
+  const cpPassedIds = useMemo(() => checkpoints?.passedIds || [], [checkpoints]);
+  const cpUserPosition = checkpoints?.userPosition || position;
+
+  // Road route from user to the current checkpoint via OSRM
+  const [routeCoords, setRouteCoords] = useState(null);
+  const routeKey = useMemo(() => {
+    if (!cpCurrentId || !cpUserPosition) return null;
+    const cp = cpItems.find((c) => c.id === cpCurrentId);
+    if (!cp) return null;
+    return `${cpUserPosition[0]},${cpUserPosition[1]}->${cp.latitude},${cp.longitude}`;
+  }, [cpCurrentId, cpUserPosition, cpItems]);
+
+  useEffect(() => {
+    if (!routeKey) { setRouteCoords(null); return; }
+    const [from, to] = routeKey.split('->');
+    const [lat1, lng1] = from.split(',').map(Number);
+    const [lat2, lng2] = to.split(',').map(Number);
+    const url = `https://router.project-osrm.org/route/v1/foot/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&overview=full`;
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.code === 'Ok' && data.routes?.length) {
+          setRouteCoords(data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        } else {
+          setRouteCoords(null);
+        }
+      })
+      .catch(() => { if (!cancelled) setRouteCoords(null); });
+    return () => { cancelled = true; };
+  }, [routeKey]);
+
+  // Road route from user to gathering point via OSRM
+  const [gatheringRouteCoords, setGatheringRouteCoords] = useState(null);
+  const gatheringRouteKey = useMemo(() => {
+    if (!gathering?.point || gathering?.category === 'zone' || !position) return null;
+    return `${position[0]},${position[1]}->${gathering.point[0]},${gathering.point[1]}`;
+  }, [gathering?.point, gathering?.category, position]);
+
+  useEffect(() => {
+    if (!gatheringRouteKey) { setGatheringRouteCoords(null); return; }
+    const [from, to] = gatheringRouteKey.split('->');
+    const [lat1, lng1] = from.split(',').map(Number);
+    const [lat2, lng2] = to.split(',').map(Number);
+    const url = `https://router.project-osrm.org/route/v1/foot/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&overview=full`;
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.code === 'Ok' && data.routes?.length) {
+          setGatheringRouteCoords(data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        } else {
+          setGatheringRouteCoords(null);
+        }
+      })
+      .catch(() => { if (!cancelled) setGatheringRouteCoords(null); });
+    return () => { cancelled = true; };
+  }, [gatheringRouteKey]);
+
+  return (
+    <div className={styles.mapWrapper}>
+      <MapContainer
+        ref={ref}
+        center={position}
+        zoom={INITIAL_ZOOM}
+        zoomControl={false}
+        className={className || styles.map}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        />
+        <ZoomWatcher onZoomChange={setZoom} />
+        <Marker position={position} icon={ownIcon} />
+
+        {(zones || []).map((zone) => (
+          <Circle
+            key={zone.id}
+            center={[zone.latitude, zone.longitude]}
+            radius={zone.radius || 80}
+            pathOptions={{
+              color: '#c6ff3d',
+              fillColor: '#c6ff3d',
+              fillOpacity: 0.15,
+              weight: 2,
+            }}
+            eventHandlers={{
+              click: () => onZoneClick?.(zone),
+            }}
+          />
+        ))}
+
+      {gathering && gathering.category === 'zone' ? (
+        <Circle
+          center={gathering.point}
+          radius={gathering.radius || 80}
+          pathOptions={{
+            color: '#c6ff3d',
+            fillColor: '#c6ff3d',
+            fillOpacity: 0.15,
+            weight: 2,
+          }}
+        />
+      ) : gathering ? (
+        <Marker position={gathering.point} icon={gatheringIcon}>
+          <Tooltip permanent direction="top" offset={[0, -16]} className="map-gathering-label">
+            {gathering.title || 'Збір'}
+          </Tooltip>
+        </Marker>
+      ) : null}
+
+        {cpItems.length > 0 && (
+          <CheckpointLayer
+            checkpoints={cpItems}
+            currentCheckpointId={cpCurrentId}
+            passedCheckpointIds={cpPassedIds}
+          />
+        )}
+
+        {routeCoords && (
+          <Polyline
+            positions={routeCoords}
+            pathOptions={{
+              color: '#0b0b0c',
+              weight: 4,
+              opacity: 0.8,
+              lineCap: 'round',
+              dashArray: '1, 10',
+            }}
+          />
+        )}
+
+        {gatheringRouteCoords && (
+          <Polyline
+            positions={gatheringRouteCoords}
+            pathOptions={{
+              color: '#0b0b0c',
+              weight: 4,
+              opacity: 0.8,
+              lineCap: 'round',
+              dashArray: '1, 10',
+            }}
+          />
+        )}
+
+        <ClusterLayer
+          people={nearbyUsers}
+          acceptedIds={acceptedIds}
+          showLabels={showLabels}
+          onSelectPerson={setProfilePerson}
+        />
+        <RecenterOnMove position={position} />
+      </MapContainer>
+
+      {profilePerson && (
+        <ProfileMiniCard
+          person={profilePerson}
+          onClose={() => setProfilePerson(null)}
+          onViewProfile={onViewProfile}
+        />
+      )}
+    </div>
   );
 });
 

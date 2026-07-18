@@ -15,11 +15,15 @@ _JWT = settings.SIMPLE_JWT
 REFRESH_COOKIE_NAME = _JWT.get('AUTH_COOKIE', 'refresh_token')
 REFRESH_COOKIE_PATH = _JWT.get('AUTH_COOKIE_PATH', '/')
 REFRESH_COOKIE_SECURE = _JWT.get('AUTH_COOKIE_SECURE', True)
-# 'Strict' instead of 'Lax': this cookie is only ever needed on same-site
-# XHR calls from our own frontend (refresh/logout), never on a top-level
-# cross-site navigation, so there's no reason to relax it to 'Lax' and
-# accept the extra CSRF surface that comes with it.
-REFRESH_COOKIE_SAMESITE = _JWT.get('AUTH_COOKIE_SAMESITE', 'Strict')
+# Must be 'Lax' (not 'Strict'): the refresh cookie is sent on top-level
+# cross-site navigations back from Discord's OAuth redirect (the browser
+# lands on our callback route, which then calls /users/login/refresh/ with
+# credentials). 'Strict' would drop the cookie on that navigation and every
+# Discord login would fail to restore the session. The extra CSRF surface is
+# negligible here because the cookie is httpOnly and only ever carries the
+# refresh token, which itself can't be used to mutate anything without a
+# valid access token issued from it.
+REFRESH_COOKIE_SAMESITE = _JWT.get('AUTH_COOKIE_SAMESITE', 'Lax')
 REFRESH_COOKIE_DOMAIN = _JWT.get('AUTH_COOKIE_DOMAIN', None)
 
 
