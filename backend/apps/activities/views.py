@@ -182,7 +182,12 @@ class ActivityViewSet(viewsets.ModelViewSet):
         )
         return Response({'detail': 'Зону приховано.'}, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass')
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass',
+        permission_classes=[permissions.IsAuthenticated],
+    )
     def pass_checkpoint(self, request, pk=None, checkpoint_id=None):
         """Учасник позначає, що пройшов чекпоїнт."""
         activity = self.get_object()
