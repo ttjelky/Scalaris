@@ -499,7 +499,7 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          <Navbar />
+          <Navbar onMenuToggle={() => setSheetState('collapsed')} />
           <Link to="/profile" className={styles.greetingBlock}>
             {user?.avatar ? (
               <img src={user.avatar} alt="" className={styles.greetingAvatar} />
@@ -580,7 +580,7 @@ export default function Home() {
       </header>
 
       <div className={styles.rightSidebar}>
-        <Navbar />
+        <Navbar onMenuToggle={() => setSheetState('collapsed')} />
         <button
           className={styles.recenterButton}
           onClick={recenterToMe}
