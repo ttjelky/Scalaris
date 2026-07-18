@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import api from '../../api/axios';
@@ -13,6 +13,7 @@ import styles from './Home.module.css';
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));
 const CrossActivityForm = lazy(() => import('../../components/CrossActivityForm/CrossActivityForm'));
 const GameZoneForm = lazy(() => import('../../components/GameZoneForm/GameZoneForm'));
+const QuestActivityForm = lazy(() => import('../../components/QuestActivityForm/QuestActivityForm'));
 
 // Drag distance (px) needed to trigger a state change when releasing the sheet.
 const COLLAPSE_THRESHOLD = 60;
@@ -136,6 +137,15 @@ const ACTIVITIES = [
       </svg>
     ),
   },
+  {
+    id: 'quest',
+    label: 'Квест',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Home() {
@@ -193,6 +203,26 @@ export default function Home() {
   const isDraggingRef = useRef(false);
   const rafRef = useRef(null);
   const hasDragged = useRef(false);
+  const pillsRef = useRef(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const pillsScrollingRef = useRef(false);
+
+  const handlePillsScroll = useCallback(() => {
+    const el = pillsRef.current;
+    if (!el || pillsScrollingRef.current) return;
+    const half = el.scrollWidth / 2;
+    let reset = 0;
+    if (el.scrollLeft >= half) {
+      reset = -half;
+    } else if (el.scrollLeft <= 0) {
+      reset = half;
+    }
+    if (reset !== 0) {
+      pillsScrollingRef.current = true;
+      el.scrollLeft += reset;
+      requestAnimationFrame(() => { pillsScrollingRef.current = false; });
+    }
+  }, []);
 
   const isCreator = ongoingActivity && user && ongoingActivity.creator?.id === user.id;
 
@@ -269,8 +299,16 @@ export default function Home() {
   );
 
   const handleHeaderClick = () => {
-    if (activeActivity) return; // header no longer toggles collapse mid-form
-    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
+    if (activeActivity) {
+      setIsClosing(true);
+      setSheetState('collapsed');
+      setTimeout(() => {
+        setActiveActivityId(null);
+        setIsClosing(false);
+      }, 280);
+      return;
+    }
+    if (ongoingActivity && !isCreator) return;
     if (hasDragged.current) return;
     setSheetState((prev) => (prev === 'collapsed' ? 'expanded' : 'collapsed'));
   };
@@ -624,8 +662,9 @@ export default function Home() {
 
   const sheetClassName = [
     styles.sheet,
-    sheetState === 'collapsed' && styles.sheetCollapsed,
+    !isClosing && sheetState === 'collapsed' && styles.sheetCollapsed,
     isDragging && styles.sheetDragging,
+    isClosing && styles.sheetClosing,
   ]
     .filter(Boolean)
     .join(' ');
@@ -660,7 +699,15 @@ export default function Home() {
     <div className={styles.screen}>
       <header className={styles.topbar}>
         <div className={styles.topbarLeft}>
-          <Navbar onMenuToggle={() => setSheetState('collapsed')} />
+          <Navbar onMenuToggle={() => {
+            if (activeActivity) {
+              setIsClosing(true);
+              setSheetState('collapsed');
+              setTimeout(() => { setActiveActivityId(null); setIsClosing(false); }, 280);
+            } else {
+              setSheetState('collapsed');
+            }
+          }} />
           <Link to="/profile" className={styles.greetingBlock}>
             {user?.avatar ? (
               <img src={user.avatar} alt="" className={styles.greetingAvatar} />
@@ -742,10 +789,10 @@ export default function Home() {
           </button>
         </div>
 
-        <div className={styles.activityPills}>
-          {ACTIVITIES.map((activity) => (
+        <div className={styles.activityPills} ref={pillsRef} onScroll={handlePillsScroll}>
+          {[...ACTIVITIES, ...ACTIVITIES].map((activity, i) => (
             <button
-              key={activity.id}
+              key={`${activity.id}-${i}`}
               type="button"
               className={`${styles.activityPill} ${activeActivityId === activity.id ? styles.activityPillActive : ''}`}
               onClick={() => handlePillClick(activity)}
@@ -760,7 +807,15 @@ export default function Home() {
       </header>
 
       <div className={styles.rightSidebar}>
-        <Navbar onMenuToggle={() => setSheetState('collapsed')} />
+        <Navbar onMenuToggle={() => {
+          if (activeActivity) {
+            setIsClosing(true);
+            setSheetState('collapsed');
+            setTimeout(() => { setActiveActivityId(null); setIsClosing(false); }, 1000);
+          } else {
+            setSheetState('collapsed');
+          }
+        }} />
         <button
           className={styles.recenterButton}
           onClick={recenterToMe}
@@ -880,21 +935,9 @@ export default function Home() {
           <div className={styles.heroRow}>
             {activeActivity ? (
               <>
-                <button
-                  type="button"
-                  className={styles.sheetBackBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCancelCreate();
-                  }}
-                  aria-label="Назад"
-                >
-                  ←
-                </button>
                 <div className={styles.heroTitleBlock}>
                   <h1 className={styles.heroTitle}>{activeActivity.label}</h1>
                 </div>
-                <span className={styles.sheetBackSpacer} aria-hidden="true" />
               </>
             ) : ongoingActivity ? (
               <>
@@ -976,6 +1019,13 @@ export default function Home() {
                 onCancel={handleCancelCreate}
                 onCreated={handleActivityCreated}
               />
+            ) : activeActivity.id === 'quest' ? (
+              <QuestActivityForm
+                initialPosition={position}
+                nearbyUsers={nearbyUsers}
+                onCancel={handleCancelCreate}
+                onCreated={handleActivityCreated}
+              />
             ) : (
               <ActivityForm
                 initialPosition={position}
@@ -987,7 +1037,52 @@ export default function Home() {
           </Suspense>
         ) : ongoingActivity ? (
           <div className={styles.ongoingWrap}>
-            {ongoingActivity.category === 'cross' ? (
+            {ongoingActivity.category === 'quest' ? (
+              <>
+                <p className={styles.heroText}>
+                  {ongoingActivity.duration_seconds ? (
+                    <>Залишилось {formatDurationLong(Math.max(0, ongoingActivity.duration_seconds * 1000 - ongoingElapsed))}.</>
+                  ) : (
+                    <>Квест триває вже {formatDurationLong(ongoingElapsed)}.</>
+                  )}
+                </p>
+
+                {(() => {
+                  const sorted = [...(ongoingActivity.participants || [])]
+                    .sort((a, b) => (b.distance_km || 0) - (a.distance_km || 0));
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const hasAnyDistance = sorted.some((p) => p.distance_km > 0);
+                  return hasAnyDistance ? (
+                    <>
+                      <p className={styles.ongoingParticipantsTitle}>Таблиця лідерів</p>
+                      <div className={styles.questLeaderboard}>
+                        {sorted.map((p, i) => (
+                          <div
+                            key={p.id}
+                            className={`${styles.questLeaderRow} ${i < 3 ? styles[`questPlace${i + 1}`] : ''}`}
+                          >
+                            <span className={styles.questPlace}>{medals[i] || `${i + 1}`}</span>
+                            {p.avatar ? (
+                              <img src={p.avatar} alt="" className={styles.questLeaderAvatar} />
+                            ) : (
+                              <span className={styles.questLeaderAvatarFallback}>
+                                {p.username?.slice(0, 1).toUpperCase()}
+                              </span>
+                            )}
+                            <span className={styles.questLeaderName}>{p.username}</span>
+                            <span className={styles.questLeaderKm}>
+                              {(p.distance_km || 0).toFixed(2)} км
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className={styles.heroText}>Учасники в дорозі — ніхто ще не пройшов жодного кілометру.</p>
+                  );
+                })()}
+              </>
+            ) : ongoingActivity.category === 'cross' ? (
               <>
                 <p className={styles.heroText}>
                   {ongoingActivity.duration_seconds ? (

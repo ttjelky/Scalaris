@@ -44,9 +44,13 @@
 .activityPills {
   display: flex;
   gap: 8px;
+  flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  padding-bottom: 2px;
 }
 
 .activityPills::-webkit-scrollbar {
@@ -388,6 +392,16 @@
   transition: max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
     padding 0.34s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.34s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.34s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sheetClosing {
+  max-height: 108px;
+  overflow: hidden;
+  padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 26px;
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 1, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 1, 1), border-radius 0.28s cubic-bezier(0.4, 0, 1, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* While actively dragging, the transform is written straight to the DOM
@@ -885,6 +899,87 @@
   color: var(--color-ink-soft, #6b6b70);
 }
 
+.questLeaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.questLeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 16px);
+  background: var(--color-surface, #f7f7f5);
+  border: 1.5px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.questPlace1 {
+  background: rgba(198, 255, 61, 0.15);
+  border-color: rgba(198, 255, 61, 0.4);
+}
+
+.questPlace2 {
+  background: rgba(192, 192, 192, 0.12);
+  border-color: rgba(192, 192, 192, 0.3);
+}
+
+.questPlace3 {
+  background: rgba(205, 127, 50, 0.1);
+  border-color: rgba(205, 127, 50, 0.25);
+}
+
+.questPlace {
+  font-size: 1.1rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.questLeaderAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.questLeaderAvatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-bg, #fff);
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.questLeaderName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-ink, #0b0b0c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.questLeaderKm {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink, #0b0b0c);
+}
+
 .ongoingParticipantsList {
   display: flex;
   flex-direction: column;
@@ -1043,16 +1138,19 @@
     flex-wrap: nowrap;
     align-items: center;
     gap: 8px;
-    /* FIX: was a hardcoded 65px, which sat lower than and misaligned with
-       the greeting block on the left (whose top comes from the topbar's
-       safe-area padding). Match that same offset so both sit in the
-       top corners at the same height. */
     top: max(16px, env(safe-area-inset-top));
     right: 18px;
   }
 
   .topbarLeft > *:not(.greetingBlock) {
     display: none;
+  }
+
+  .activityPills {
+    max-width: 55vw;
+    padding-left: 4px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
   }
 
   .sheet {
