@@ -139,9 +139,11 @@ function CheckpointLayer({ checkpoints, currentCheckpointId, passedCheckpointIds
         position={[cp.latitude, cp.longitude]}
         icon={makeCheckpointIcon(cp.order, isCurrent, isPassed)}
       >
-        <Tooltip permanent direction="top" offset={[0, -18]} className="map-checkpoint-label">
-          {isCurrent ? '→ Чекпоїнт' : `#${cp.order}`}
-        </Tooltip>
+        {!isCurrent && (
+          <Tooltip permanent direction="top" offset={[0, -18]} className="map-checkpoint-label">
+            #{cp.order}
+          </Tooltip>
+        )}
       </Marker>
     );
   });
@@ -384,6 +386,34 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
     return () => { cancelled = true; };
   }, [routeKey]);
 
+  // Road route from user to gathering point via OSRM
+  const [gatheringRouteCoords, setGatheringRouteCoords] = useState(null);
+  const gatheringRouteKey = useMemo(() => {
+    if (!gathering?.point || gathering?.category === 'zone' || !position) return null;
+    return `${position[0]},${position[1]}->${gathering.point[0]},${gathering.point[1]}`;
+  }, [gathering?.point, gathering?.category, position]);
+
+  useEffect(() => {
+    if (!gatheringRouteKey) { setGatheringRouteCoords(null); return; }
+    const [from, to] = gatheringRouteKey.split('->');
+    const [lat1, lng1] = from.split(',').map(Number);
+    const [lat2, lng2] = to.split(',').map(Number);
+    const url = `https://router.project-osrm.org/route/v1/foot/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&overview=full`;
+    let cancelled = false;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.code === 'Ok' && data.routes?.length) {
+          setGatheringRouteCoords(data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]));
+        } else {
+          setGatheringRouteCoords(null);
+        }
+      })
+      .catch(() => { if (!cancelled) setGatheringRouteCoords(null); });
+    return () => { cancelled = true; };
+  }, [gatheringRouteKey]);
+
   return (
     <div className={styles.mapWrapper}>
       <MapContainer
@@ -447,6 +477,19 @@ const MapView = forwardRef(function MapView({ position, nearbyUsers, gathering, 
         {routeCoords && (
           <Polyline
             positions={routeCoords}
+            pathOptions={{
+              color: '#0b0b0c',
+              weight: 4,
+              opacity: 0.8,
+              lineCap: 'round',
+              dashArray: '1, 10',
+            }}
+          />
+        )}
+
+        {gatheringRouteCoords && (
+          <Polyline
+            positions={gatheringRouteCoords}
             pathOptions={{
               color: '#0b0b0c',
               weight: 4,

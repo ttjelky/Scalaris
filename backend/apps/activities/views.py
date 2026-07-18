@@ -152,8 +152,6 @@ class ActivityViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(activity)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass',
-            permission_classes=[permissions.IsAuthenticated])
     def destroy(self, request, *args, **kwargs):
         """Видалення активності творцем. Розсилає WebSocket-сповіщення."""
         activity = self.get_object()
