@@ -1,0 +1,124 @@
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 11, 12, 0.45);
+  padding: 20px;
+  animation: overlayIn 0.18s var(--ease-track, ease) both;
+}
+
+.modal {
+  width: 100%;
+  max-width: 340px;
+  background: var(--color-bg, #ffffff);
+  border-radius: 24px;
+  padding: 24px 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: modalIn 0.22s var(--ease-track, ease) both;
+}
+
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modalOverlay,
+  .modal {
+    animation: none;
+  }
+}
+
+.modalTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-stretch: condensed;
+  text-transform: uppercase;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.modalText {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Shared with ProfileEditForm.module.css's cancel button — duplicated here
+   so this dialog can be dropped in anywhere on its own. */
+.cancelButton {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  padding: 14px 20px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease-track, ease), background 0.15s var(--ease-track, ease);
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+  border: 1px solid var(--color-line, #e5e5e5);
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--color-line, #f0f0f0);
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmButton {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  padding: 14px 20px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  background: var(--color-danger, #d9463f);
+  color: #ffffff;
+  transition: opacity 0.15s var(--ease-track, ease);
+}
+
+.confirmButton:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.confirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

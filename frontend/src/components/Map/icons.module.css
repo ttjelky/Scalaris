@@ -1,0 +1,175 @@
+/* Leaflet gives div-icons a default white box + border — strip that so
+   only our custom dot styling below is visible. */
+:global(.leaflet-dot-icon),
+:global(.leaflet-avatar-icon) {
+  background: transparent;
+  border: none;
+}
+
+.ownMarker {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent, #c6ff3d);
+  border: 3px solid var(--color-ink, #0b0b0c);
+  box-shadow: 0 0 0 5px rgba(198, 255, 61, 0.3);
+}
+
+/* Nearby person marker — shows their avatar photo in a round frame.
+   Sizing comes from the divIcon's iconSize (PERSON_AVATAR_SIZE /
+   ACCEPTED_AVATAR_SIZE in icons.js), so this fills 100% of that box. */
+.personAvatarWrap {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-ink, #0b0b0c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Nearby person who accepted the current "Збір" invite — accent ring so
+   they visually stand apart from plain nearby users. */
+.personAvatarAccepted {
+  border: 3px solid var(--color-accent, #c6ff3d);
+  box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
+}
+
+.personAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Shown when a person has no avatar set, or their photo fails to load
+   (see the inline onerror in icons.js's makePersonIcon). */
+.personAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+/* Cluster marker — shown instead of individual avatars when several people
+   are close enough on screen to overlap (see CLUSTER_PIXEL_RADIUS in
+   ClusterLayer.jsx). Sizing comes from the divIcon's iconSize (CLUSTER_SIZE). */
+.clusterMarker {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+/* Cluster containing at least one person who accepted the current "Збір"
+   invite — same accent-ring treatment as a single accepted avatar. */
+.clusterAccepted {
+  border: 3px solid var(--color-accent, #c6ff3d);
+  box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
+  cursor: pointer;
+}
+
+/* The gathering point itself. Bigger than any person dot, with a soft
+   pulsing halo so it reads as "the destination" at a glance. */
+.gatheringMarker {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-ink, #0b0b0c);
+  border: 3px solid var(--color-accent, #c6ff3d);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.gatheringMarker::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 2px solid var(--color-accent, #c6ff3d);
+  opacity: 0.6;
+  animation: gatheringPulse 1.8s ease-out infinite;
+}
+
+@keyframes gatheringPulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/* Checkpoint marker — numbered circle on the map during a cross activity. */
+.checkpointMarker {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-surface, #f7f7f5);
+  border: 2.5px solid var(--color-line, #cfcfcf);
+  color: var(--color-ink-soft, #6b6b70);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.78rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Current checkpoint — accent-colored, pulsing, visually prominent. */
+.checkpointMarkerCurrent {
+  background: var(--color-accent, #c6ff3d);
+  border-color: var(--color-ink, #0b0b0c);
+  color: var(--color-ink, #0b0b0c);
+  box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  animation: checkpointPulse 2s ease-out infinite;
+}
+
+/* Passed checkpoint — dimmed, no pulse. */
+.checkpointMarkerPassed {
+  background: rgba(198, 255, 61, 0.25);
+  border-color: rgba(198, 255, 61, 0.5);
+  color: var(--color-ink, #0b0b0c);
+}
+
+@keyframes checkpointPulse {
+  0% {
+    box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  }
+  50% {
+    box-shadow: 0 2px 20px rgba(198, 255, 61, 0.7);
+  }
+  100% {
+    box-shadow: 0 2px 12px rgba(198, 255, 61, 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gatheringMarker::after,
+  .checkpointMarkerCurrent {
+    animation: none;
+  }
+}

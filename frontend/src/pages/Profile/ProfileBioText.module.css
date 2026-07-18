@@ -1,0 +1,11 @@
+.bio {
+  margin: 0 auto;
+  max-width: min(40ch, 100%);
+  padding: 0 24px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-ink-soft, #6b6b70);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

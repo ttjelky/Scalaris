@@ -1,0 +1,28 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: max(16px, env(safe-area-inset-top)) 20px 12px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--color-ink, #0b0b0c);
+}
+
+.backArrow {
+  font-size: 15px;
+  line-height: 1;
+}

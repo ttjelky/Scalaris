@@ -1,0 +1,41 @@
+.phoneRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.phoneIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink-soft, #6b6b70);
+  flex-shrink: 0;
+}
+
+.phoneValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+.phoneAddButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--color-line, #e5e5e5);
+  border-radius: var(--radius-pill, 999px);
+  padding: 7px 16px;
+  background: none;
+  color: var(--color-ink-soft, #6b6b70);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-track, ease), color 0.2s var(--ease-track, ease);
+}
+
+.phoneAddButton:hover {
+  background: var(--color-surface, #f7f7f5);
+  color: var(--color-ink, #0b0b0c);
+}

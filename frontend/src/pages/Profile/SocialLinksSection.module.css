@@ -1,0 +1,133 @@
+.socialSection {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-line, #e5e5e5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Shared with ProfileEditForm.module.css's field label — duplicated here
+   since this section renders standalone (its own "Соцмережі" caption). */
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft, #6b6b70);
+}
+
+/* Shared with ProfileEditForm.module.css's save-error banner — duplicated
+   here for the Discord unlink error. */
+.formError {
+  border: 1px solid var(--color-danger, #d9463f);
+  background: #fdeceb;
+  color: var(--color-danger, #d9463f);
+  border-radius: var(--radius-sm, 16px);
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.socialChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.socialChip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-line, #e5e5e5);
+  border-radius: var(--radius-pill, 999px);
+  padding: 6px 16px 6px 6px;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-ink, #0b0b0c);
+  font-weight: 700;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), border-color 0.15s var(--ease-track, ease),
+    transform 0.12s var(--ease-track, ease);
+}
+
+.socialChip:hover {
+  background: var(--color-surface, #f7f7f5);
+}
+
+.socialChip:active {
+  transform: scale(0.97);
+}
+
+.socialChipConnected {
+  padding-right: 6px;
+  border-color: var(--color-line, #e5e5e5);
+  background: var(--color-surface, #f7f7f5);
+  cursor: default;
+}
+
+.socialChipConnected:hover {
+  background: var(--color-surface, #f7f7f5);
+}
+
+.socialChipIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #ffffff;
+}
+
+.socialChipIconDiscord {
+  background: #5865f2;
+}
+
+.socialChipLabel {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.socialChipUnlink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  padding: 0;
+  color: var(--color-ink-soft, #6b6b70);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s var(--ease-track, ease), color 0.15s var(--ease-track, ease);
+}
+
+.socialChipUnlink:hover:not(:disabled) {
+  background: #fdeceb;
+  color: var(--color-danger, #d9463f);
+}
+
+.socialChipUnlink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Not currently rendered anywhere in SocialLinksSection.jsx — kept from the
+   original stylesheet in case a hint line gets added under the chips. */
+.socialHint {
+  font-size: 12px;
+  color: var(--color-ink-soft, #6b6b70);
+}

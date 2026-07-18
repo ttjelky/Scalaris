@@ -1,0 +1,34 @@
+/* Tooltip above the gathering point marker — same pill treatment as
+   CheckpointLayer's checkpoint label, but always visible (not gated by
+   zoom) since there's only one. Leaflet renders tooltips outside of
+   React's tree, so this has to be a plain global class. */
+:global(.map-gathering-label) {
+  background: var(--color-ink, #0b0b0c);
+  color: var(--color-accent, #c6ff3d);
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  padding: 4px 11px;
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+:global(.map-gathering-label)::before {
+  display: none;
+}
+
+/* Road route line — kept for reference; the Polyline in GatheringLayer.jsx
+   is currently styled via its own pathOptions rather than this class. */
+.routeLine {
+  stroke: var(--color-ink, #0b0b0c);
+  stroke-width: 4px;
+  stroke-opacity: 0.8;
+  stroke-linecap: round;
+  stroke-dasharray: 1, 10;
+  fill: none;
+}

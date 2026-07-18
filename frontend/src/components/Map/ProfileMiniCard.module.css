@@ -1,0 +1,111 @@
+.profileCardBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  animation: profileBackdropFadeIn 0.15s ease-out;
+}
+
+.profileCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 200px;
+  padding: 22px 18px 18px;
+  background: var(--color-bg, #ffffff);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25);
+  animation: profileCardPopIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes profileBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes profileCardPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.profileCardAvatarWrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eceff1;
+  border: 2px solid var(--color-ink, #0b0b0c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileCardAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profileCardAvatarFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink, #0b0b0c);
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+}
+
+.profileCardName {
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--color-ink, #0b0b0c);
+  text-align: center;
+  word-break: break-word;
+}
+
+.profileCardButton {
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--color-accent, #c6ff3d);
+  color: var(--color-ink, #0b0b0c);
+  font-family: var(--font-display, inherit);
+  font-weight: 800;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.profileCardButton:hover,
+.profileCardButton:focus-visible {
+  filter: brightness(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profileCardBackdrop,
+  .profileCard {
+    animation: none;
+  }
+}
