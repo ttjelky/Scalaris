@@ -143,7 +143,8 @@ class ActivityViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(activity)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass')
+    @action(detail=True, methods=['post'], url_path='checkpoints/(?P<checkpoint_id>[\\d]+)/pass',
+            permission_classes=[permissions.IsAuthenticated])
     def pass_checkpoint(self, request, pk=None, checkpoint_id=None):
         """Учасник позначає, що пройшов чекпоїнт."""
         activity = self.get_object()
@@ -229,7 +230,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='zones/nearby')
     def nearby_zones(self, request):
-        """Повертає активні ігрові зони поруч — видні всім користувачам."""
+        """Повертає активні ігрові зони поруч — друзі бачать зони друзів."""
         try:
             lat = float(request.query_params['lat'])
             lng = float(request.query_params['lng'])
@@ -241,6 +242,10 @@ class ActivityViewSet(viewsets.ModelViewSet):
             )
 
         point = Point(lng, lat, srid=4326)
+
+        friend_ids = set(request.user.friends.values_list('pk', flat=True))
+        friend_ids.add(request.user.pk)  # always include own zones
+
         zones = (
             Activity.objects.filter(
                 category=Activity.Category.ZONE,
@@ -253,6 +258,9 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
         data = []
         for zone in zones:
+            if zone.is_friends_only and zone.creator_id not in friend_ids:
+                continue
+
             participants = [
                 {
                     'id': inv.to_user.pk,

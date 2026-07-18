@@ -52,6 +52,14 @@ class LocationSerializer(serializers.ModelSerializer):
         )
         return location
 
+    def update(self, instance, validated_data):
+        lat = validated_data.pop('latitude', None)
+        lng = validated_data.pop('longitude', None)
+        if lat is not None and lng is not None:
+            instance.point = Point(lng, lat, srid=4326)
+        instance.save()
+        return instance
+
 
 class ActivityParticipantSerializer(serializers.ModelSerializer):
     """
@@ -218,7 +226,7 @@ class ActivitySerializer(serializers.ModelSerializer):
                 )
 
         # Для всіх крім зони — обов'язкові учасники
-        if category != Activity.Category.ZONE:
+        if category and category != Activity.Category.ZONE:
             participants = attrs.get('participant_ids', [])
             if not participants:
                 raise serializers.ValidationError(
