@@ -45,6 +45,11 @@ export default function useActivitySocket(activityId) {
 
     let active = true;
     const currentConnectionId = ++connectionId.current;
+    // Declared here (not inside connect()) so both onclose (which schedules
+    // it) and the effect's cleanup (which clears it) close over the same
+    // variable — connect() can be re-invoked recursively on reconnect, so a
+    // local declaration inside it would go out of scope before cleanup runs.
+    let reconnectTimer = null;
 
     function connect() {
       if (!active || currentConnectionId !== connectionId.current) return;
