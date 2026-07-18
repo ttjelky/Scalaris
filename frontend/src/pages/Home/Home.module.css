@@ -135,6 +135,18 @@
   cursor: not-allowed;
 }
 
+.rightSidebar {
+  display: none;
+  position: fixed;
+  top: 18px;
+  right: 14px;
+  z-index: 700;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+}
+
 .friendsFilterButton {
   display: flex;
   align-items: center;
@@ -150,6 +162,34 @@
   box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease),
     border-color 0.2s var(--ease-track, ease);
+  padding: 0;
+}
+
+.friendsFilterDots {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+}
+
+.friendsFilterDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.friendsFilterDot:first-child {
+  background: #ff6b6b;
+}
+
+.friendsFilterDot:nth-child(2) {
+  background: #ffa94d;
+}
+
+.friendsFilterDot:nth-child(3) {
+  background: #ffd43b;
 }
 
 .friendsFilterButtonActive {
@@ -181,12 +221,6 @@
   text-decoration: none;
   border-radius: 999px;
   padding: 11px 18px;
-  /* .topbarLeft has gap: 8px between Navbar and this block. Navbar's own
-     trigger renders position: fixed elsewhere, so it takes up no visible
-     space here, but the flex gap still applies before the next item —
-     pushing this block 8px right of where the "Збір" pill starts below.
-     Cancel it out so both left edges line up. */
-  margin: 0 0 0 -8px;
   min-height: 48px;
   height: 48px;
   background: rgba(255, 255, 255, 0.9);
@@ -239,10 +273,6 @@
 }
 
 .recenterButton {
-  position: fixed;
-  top: 20px;
-  right: 74px;
-  z-index: 800;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,7 +285,6 @@
   color: var(--color-ink, #0b0b0c);
   flex-shrink: 0;
   cursor: pointer;
-  align-self: center;
   box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   transition: background 0.2s var(--ease-track, ease), transform 0.15s var(--ease-track, ease);
 }
@@ -880,4 +909,25 @@
   padding: 8px 12px;
   border-radius: 8px;
   z-index: 1300;
+}
+
+/* --- Mobile: column sidebar on the right --- */
+@media (max-width: 768px) {
+  .rightSidebar {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    /* FIX: was a hardcoded 65px, which sat lower than and misaligned with
+       the greeting block on the left (whose top comes from the topbar's
+       safe-area padding). Match that same offset so both sit in the
+       top corners at the same height. */
+    top: max(16px, env(safe-area-inset-top));
+    right: 18px;
+  }
+
+  .topbarLeft > *:not(.greetingBlock) {
+    display: none;
+  }
 }

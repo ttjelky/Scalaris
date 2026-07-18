@@ -7,18 +7,16 @@
 
 .burger {
   --size: 42px;
-  position: fixed;
-  top: 20px;
-  right: 20px;
+  position: relative;
   z-index: 9999;
   display: grid;
   place-items: center;
   width: var(--size);
   height: var(--size);
-  border: none;
+  border: 1px solid var(--color-line, #e5e5e5);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 6px 20px rgba(20, 20, 20, 0.16);
+  box-shadow: 0 8px 20px rgba(11, 11, 12, 0.08);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.2s ease, transform 0.2s ease;
@@ -63,7 +61,7 @@
 
 .menu {
   position: fixed;
-  top: 78px;
+  top: 72px;
   left: 16px;
   right: 16px;
   z-index: 950;
@@ -293,8 +291,15 @@
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@media (min-width: 1024px) {
+/* FIX: раніше тут стояло min-width:1024px, а мобільна версія (в
+   home.module.css) вимикається на max-width:768px. Між 769px і 1023px не
+   спрацьовував жоден з варіантів — бургер лишався в потоці зліва.
+   Тепер межа співпадає з мобільною (769px), дірки немає. */
+@media (min-width: 769px) {
   .burger {
+    /* без position:fixed top/right нижче ігнорувались браузером,
+       і бургер лишався в потоці зліва замість правого верхнього кута. */
+    position: fixed;
     top: 20px;
     right: 20px;
   }
