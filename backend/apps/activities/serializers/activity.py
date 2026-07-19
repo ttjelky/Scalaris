@@ -1,4 +1,3 @@
-from datetime import timedelta
 from django.contrib.gis.geos import Point
 from django.db import transaction
 from django.utils import timezone
@@ -6,59 +5,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 from apps.users.serializers import UserPublicSerializer
-from .models import Location, Activity, Invitation, Checkpoint, ParticipantCheckpoint
-
-
-class LocationSerializer(serializers.ModelSerializer):
-    """
-    Приймає latitude/longitude окремо (як шле мобільний клієнт),
-    зберігає як Point. При кожному запиті — upsert позиції поточного юзера.
-    """
-    latitude = serializers.FloatField(write_only=True)
-    longitude = serializers.FloatField(write_only=True)
-    is_online = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Location
-        fields = ['id', 'latitude', 'longitude', 'updated_at', 'is_online']
-        read_only_fields = ['id', 'updated_at']
-
-    def validate_latitude(self, value):
-        if not -90.0 <= value <= 90.0:
-            raise serializers.ValidationError("Широта повинна бути в діапазоні від -90 до 90.")
-        return value
-
-    def validate_longitude(self, value):
-        if not -180.0 <= value <= 180.0:
-            raise serializers.ValidationError("Довгота повинна бути в діапазоні від -180 до 180.")
-        return value
-
-    def get_is_online(self, obj):
-        return obj.is_online()
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data['latitude'] = instance.point.y
-        data['longitude'] = instance.point.x
-        return data
-
-    def create(self, validated_data):
-        lat = validated_data.pop('latitude')
-        lng = validated_data.pop('longitude')
-        point = Point(lng, lat, srid=4326)  # X=longitude, Y=latitude
-        user = self.context['request'].user
-        location, _ = Location.objects.update_or_create(
-            user=user, defaults={'point': point}
-        )
-        return location
-
-    def update(self, instance, validated_data):
-        lat = validated_data.pop('latitude', None)
-        lng = validated_data.pop('longitude', None)
-        if lat is not None and lng is not None:
-            instance.point = Point(lng, lat, srid=4326)
-        instance.save()
-        return instance
+from .models import Activity, Checkpoint, Invitation, ParticipantCheckpoint
 
 
 class ActivityParticipantSerializer(serializers.ModelSerializer):
@@ -136,9 +83,6 @@ class ActivitySerializer(serializers.ModelSerializer):
         max_value=86400,
         help_text='Тривалість кросу в секундах (30с – 24год).'
     )
-    # Всі запрошені (не лише ті, хто прийняв), кожен зі своїм статусом
-    # інвайту — фронт показує це як бейджі "прийнято"/"очікування" тощо
-    # і сам відфільтровує accepted/arrived для виділення на карті.
     participants = serializers.SerializerMethodField()
     checkpoints = CheckpointReadSerializer(many=True, read_only=True)
 
@@ -191,7 +135,6 @@ class ActivitySerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        # Перевірка на випадок PATCH-запитів: координати мають передаватися парою
         lat = attrs.get('latitude')
         lng = attrs.get('longitude')
         if (lat is None) != (lng is None):
@@ -199,7 +142,6 @@ class ActivitySerializer(serializers.ModelSerializer):
                 "Потрібно передати одночасно і latitude, і longitude або взагалі не передавати координати."
             )
 
-        # Для кросу обов'язкові чекпоїнти та тривалість
         category = attrs.get('category')
         checkpoints_data = attrs.get('checkpoints_data')
         if category == Activity.Category.CROSS:
@@ -222,9 +164,6 @@ class ActivitySerializer(serializers.ModelSerializer):
                     {"checkpoints_data": "Порядок чекпоїнтів має бути послідовним: 1, 2, 3 …"}
                 )
 
-        # Ігрова зона: не можна запрошувати учасників, лише обрати видимість
-        # (is_friends_only). Це не активність з інвайтами, а позначка на
-        # мапі, тож participant_ids тут неприпустимі.
         if category == Activity.Category.ZONE:
             participants = attrs.get('participant_ids', [])
             if participants:
@@ -232,7 +171,6 @@ class ActivitySerializer(serializers.ModelSerializer):
                     {"participant_ids": "У ігрову зону не можна запрошувати учасників — оберіть видимість (is_friends_only) замість цього."}
                 )
 
-        # Для всіх крім зони — обов'язкові учасники
         if category and category != Activity.Category.ZONE:
             participants = attrs.get('participant_ids', [])
             if not participants:
@@ -252,7 +190,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         data['longitude'] = instance.point.x
         return data
 
-    @transaction.atomic  # Гарантуємо цілісність даних при створенні активності та інвайтів
+    @transaction.atomic
     def create(self, validated_data):
         lat = validated_data.pop('latitude')
         lng = validated_data.pop('longitude')
@@ -262,15 +200,12 @@ class ActivitySerializer(serializers.ModelSerializer):
         now = timezone.now()
         validated_data['point'] = Point(lng, lat, srid=4326)
         validated_data['creator'] = self.context['request'].user
-        # Активність стартує одразу в момент створення — не чекаємо,
-        # поки хтось із запрошених прийме інвайт.
         validated_data['started_at'] = now
         validated_data['live_status'] = Activity.LiveStatus.ACTIVE
         validated_data['activated_at'] = now
 
         activity = Activity.objects.create(**validated_data)
 
-        # Створюємо інвайти
         Invitation.objects.bulk_create([
             Invitation(
                 from_user=activity.creator,
@@ -280,7 +215,6 @@ class ActivitySerializer(serializers.ModelSerializer):
             for user in participants
         ])
 
-        # Створюємо чекпоїнти для кросу
         if activity.category == Activity.Category.CROSS and checkpoints_data:
             Checkpoint.objects.bulk_create([
                 Checkpoint(
@@ -292,7 +226,6 @@ class ActivitySerializer(serializers.ModelSerializer):
                 for cp in checkpoints_data
             ])
 
-        # Real-time WebSocket: notify each invited participant
         try:
             from api.consumers import notify_user
             from apps.users.models import FriendRequest
@@ -329,95 +262,3 @@ class ActivityListSerializer(ActivitySerializer):
     def get_distance_km(self, obj):
         distance = getattr(obj, 'distance', None)
         return round(distance.km, 2) if distance is not None else None
-
-
-class InvitationSerializer(serializers.ModelSerializer):
-    """
-    Читання: повні дані from_user/to_user/activity.
-    Створення: from_user береться з request.user, to_user/activity — по id.
-    """
-    from_user = UserPublicSerializer(read_only=True)
-    to_user = UserPublicSerializer(read_only=True)
-    to_user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='to_user', write_only=True
-    )
-    activity_id = serializers.PrimaryKeyRelatedField(
-        queryset=Activity.objects.all(), source='activity', write_only=True
-    )
-
-    class Meta:
-        model = Invitation
-        fields = [
-            'id', 'from_user', 'to_user', 'to_user_id',
-            'activity', 'activity_id', 'status', 'created_at',
-        ]
-        read_only_fields = ['id', 'from_user', 'activity', 'status', 'created_at']
-
-    def validate(self, attrs):
-        from_user = self.context['request'].user
-        to_user = attrs.get('to_user')
-        activity = attrs.get('activity')
-
-        if from_user == to_user:
-            raise serializers.ValidationError("Не можна відправити запрошення самому собі.")
-
-        if activity.creator == to_user:
-            raise serializers.ValidationError("Цей користувач є автором активності й вже бере участь у ній.")
-
-        # Запобігаємо помилці унікальності унікального констрейнту на рівні БД
-        if Invitation.objects.filter(from_user=from_user, to_user=to_user, activity=activity).exists():
-            raise serializers.ValidationError("Запрошення для цього користувача на цю активність вже надіслано.")
-
-        return attrs
-
-    def create(self, validated_data):
-        validated_data['from_user'] = self.context['request'].user
-        return Invitation.objects.create(**validated_data)
-
-
-class InvitationRespondSerializer(serializers.ModelSerializer):
-    """Отримувач запрошення може лише прийняти або відхилити"""
-
-    class Meta:
-        model = Invitation
-        fields = ['status']
-
-    def validate_status(self, value):
-        allowed = [Invitation.Status.ACCEPTED, Invitation.Status.DECLINED]
-        if value not in allowed:
-            raise serializers.ValidationError(
-                "Статус можна змінити лише на 'accepted' або 'declined'"
-            )
-        return value
-
-    def update(self, instance, validated_data):
-        # ВИПРАВЛЕНО: викликаємо бізнес-методи моделі, щоб спрацювала вся логіка сесій
-        status = validated_data.get('status')
-        if status == Invitation.Status.ACCEPTED:
-            instance.accept()  # Внутрішній метод активує сесію та оновить responded_at
-        elif status == Invitation.Status.DECLINED:
-            instance.decline()  # Оновить responded_at
-
-        # Real-time WebSocket: notify activity participants about status change
-        try:
-            from api.consumers import notify_activity_participants, notify_user
-            from apps.users.models import FriendRequest
-
-            participant = {
-                'id': instance.to_user.id,
-                'username': instance.to_user.username,
-                'status': instance.status,
-            }
-            notify_activity_participants(instance.activity_id, participant, instance.activity.live_status)
-
-            # Also update notification count for the activity creator
-            fr_count = FriendRequest.objects.filter(to_user=instance.activity.creator).count()
-            inv_count = Invitation.objects.filter(
-                to_user=instance.activity.creator,
-                status=Invitation.Status.PENDING,
-            ).count()
-            notify_user(instance.activity.creator_id, fr_count + inv_count)
-        except Exception:
-            pass
-
-        return instance

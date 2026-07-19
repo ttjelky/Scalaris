@@ -18,6 +18,9 @@ frontend/.vite/
 .vscode/
 .idea/
 
+# Certificates
+*.pem
+
 # OS
 .DS_Store
 
