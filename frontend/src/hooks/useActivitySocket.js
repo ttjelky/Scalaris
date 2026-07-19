@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getAccessToken } from '../api/axios';
 
-// Was previously imported from a sibling './closeSocketSafely' file that
-// doesn't exist in the repo — inlined here instead of relying on that file.
 function closeSocketSafely(socket) {
   if (!socket) return;
   try {

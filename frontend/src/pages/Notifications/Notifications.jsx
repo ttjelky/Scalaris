@@ -74,7 +74,6 @@ export default function Notifications() {
 
       setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
     } catch {
-      // action failed — leave the notification in the list for retry
     } finally {
       setActingId(null);
     }

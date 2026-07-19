@@ -64,8 +64,8 @@ export default function useBottomSheetDrag({
   };
 
   const handlePointerDown = (e) => {
-    if (activeActivity) return; // no drag-to-collapse while filling out the form
-    if (ongoingActivity && !isCreator) return; // non-creators can't collapse ongoing activity
+    if (activeActivity) return; 
+    if (ongoingActivity && !isCreator) return;
     dragStartY.current = e.clientY;
     dragYRef.current = 0;
     hasDragged.current = false;

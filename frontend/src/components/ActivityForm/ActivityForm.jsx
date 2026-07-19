@@ -4,17 +4,6 @@ import api from '../../api/axios';
 import { getFriends } from '../../api/friends';
 import styles from './ActivityForm.module.css';
 
-/**
- * Inline "Збір" form, rendered inside Home's bottom sheet (not a modal).
- * Deliberately minimal: pick a spot on the map, pick participants. The
- * gathering starts immediately at submit time — there's no scheduling.
- *
- * Props:
- * - initialPosition: [lat, lng] | null
- * - nearbyUsers: array of users { id, username }
- * - onCancel: () => void
- * - onCreated: (activity) => void  // activity is enriched with participantsDetails
- */
 function ErrorIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ flexShrink: 0 }}>
@@ -70,10 +59,6 @@ export default function ActivityForm({ initialPosition, nearbyUsers = [], onCanc
     }
   };
 
-  // init map — mounts while the sheet is still animating open, so the
-  // container has no real size yet. We size/center it once, then nudge
-  // Leaflet with invalidateSize() after the CSS grid expand transition
-  // (see Home.module.css .collapsibleContent) has finished.
   useEffect(() => {
     if (!mapContainerRef.current) return;
 

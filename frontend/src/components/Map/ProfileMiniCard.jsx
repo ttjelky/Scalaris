@@ -2,11 +2,6 @@ import { useState } from 'react';
 
 import styles from './ProfileMiniCard.module.css';
 
-// Small floating card shown when a name is tapped in a cluster popup — just
-// the avatar, the username, and a way to jump to their full profile. Sits
-// above the map itself (rendered as a sibling of MapContainer, not inside
-// it, see MapView.jsx) so it isn't clipped by Leaflet's panes or tied to
-// marker positioning.
 export default function ProfileMiniCard({ person, onClose, onViewProfile }) {
   const [broken, setBroken] = useState(false);
   const initial = (person.username || '?').slice(0, 1).toUpperCase();

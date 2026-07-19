@@ -60,7 +60,6 @@ class FriendRequest(models.Model):
         unique_together = ('from_user', 'to_user')
 
     def clean(self):
-        # Забороняємо надсилати запит самому собі
         if self.from_user == self.to_user:
             raise ValidationError("Не можна надіслати запит у друзі самому собі.")
 

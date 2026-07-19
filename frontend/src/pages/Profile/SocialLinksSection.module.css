@@ -11,8 +11,6 @@
   margin-right: auto;
 }
 
-/* Shared with ProfileEditForm.module.css's field label — duplicated here
-   since this section renders standalone (its own "Соцмережі" caption). */
 .label {
   font-size: 12px;
   font-weight: 700;
@@ -21,8 +19,6 @@
   color: var(--color-ink-soft, #6b6b70);
 }
 
-/* Shared with ProfileEditForm.module.css's save-error banner — duplicated
-   here for the Discord unlink error. */
 .formError {
   border: 1px solid var(--color-danger, #d9463f);
   background: #fdeceb;
@@ -125,8 +121,6 @@
   cursor: not-allowed;
 }
 
-/* Not currently rendered anywhere in SocialLinksSection.jsx — kept from the
-   original stylesheet in case a hint line gets added under the chips. */
 .socialHint {
   font-size: 12px;
   color: var(--color-ink-soft, #6b6b70);

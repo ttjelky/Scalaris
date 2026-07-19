@@ -80,10 +80,6 @@
   border-color: var(--color-accent, #c6ff3d);
 }
 
-/* The duplicate pill set only exists to make the mobile row scroll
-   "infinitely" (see the comment in TopBar.jsx). Above the mobile
-   breakpoint the row never scrolls, so the duplicates must stay hidden —
-   otherwise every activity visibly appears twice on tablet/desktop. */
 @media (min-width: 769px) {
   .activityPillDuplicate {
     display: none;
@@ -114,7 +110,6 @@
   color: var(--color-ink, #0b0b0c);
 }
 
-/* Desktop: highlight green while the pointer is actually hovering. */
 @media (hover: hover) and (pointer: fine) {
   .visibilityButton:hover:not(:disabled) {
     background: var(--color-accent, #c6ff3d);
@@ -123,8 +118,6 @@
   }
 }
 
-/* Touch: flash green only while the finger is down — :active releases on
-   touchend, unlike :hover which would otherwise "stick" after tapping. */
 .visibilityButton:active:not(:disabled) {
   background: var(--color-accent, #c6ff3d);
   border-color: var(--color-accent, #c6ff3d);

@@ -26,11 +26,8 @@ export default function Home() {
   const [nearbyActivities, setNearbyActivities] = useState([]);
   const [hideNonParticipants, setHideNonParticipants] = useState(false);
 
-  // Which activity (if any) is currently being created. The bottom sheet
-  // switches its content based on this instead of opening a separate modal.
   const [activeActivityId, setActiveActivityId] = useState(null);
 
-  // --- Draggable bottom sheet state -------------------------------------
   const [sheetState, setSheetState] = useState('collapsed');
 
   const {
@@ -114,8 +111,6 @@ export default function Home() {
     onCloseActiveForm: handleCancelCreate,
   });
 
-  // Один "Збір" за раз: поки щось триває, кнопки створення нової активності
-  // вимкнені — спершу треба вийти з поточної.
   const canCreateActivity = !ongoingActivity;
 
   const handlePillClick = (activity) => {
@@ -125,8 +120,6 @@ export default function Home() {
     setSheetState('expanded');
   };
 
-  // Same destination as the user cards in the bottom-sheet list — used by
-  // MapView's mini profile card when tapping a user marker on the map.
   const handleViewProfile = (person) => {
     navigate(`/profile/${person.id}`);
   };
@@ -136,7 +129,6 @@ export default function Home() {
       try {
         mapRef.current.setView(position, mapRef.current.getZoom(), { animate: true });
       } catch {
-        // if mapRef isn't a Leaflet map instance, ignore
       }
     }
   };
@@ -150,25 +142,19 @@ export default function Home() {
       return;
     }
     const next = !visibleOnMap;
-    updateUser({ is_visible_on_map: next }); // optimistic
+    updateUser({ is_visible_on_map: next });
     setTogglingVisibility(true);
     try {
       await api.patch('/users/me/', { is_visible_on_map: next });
     } catch {
-      updateUser({ is_visible_on_map: !next }); // revert on failure
+      updateUser({ is_visible_on_map: !next });
     } finally {
       setTogglingVisibility(false);
     }
   };
 
-  // Activity created: show toast, refresh nearby activities, and switch the
-  // sheet over to the "ongoing activity" view instead of the people list.
   const handleActivityCreated = async (activity) => {
     setActiveActivityId(null);
-    // ActivitySerializer already returns the fully enriched creator +
-    // participants on create (same shape as GET), so set it synchronously
-    // — no need for an extra round trip, which only adds a flash back to
-    // the "nearby users" view while it's in flight.
     setOngoingActivity(activity);
     setSheetState('collapsed');
     const toastMsg = activity.category === 'cross' ? 'Крос створено успішно' : 'Збір створено успішно';
@@ -182,7 +168,7 @@ export default function Home() {
         });
         setNearbyActivities(data);
       } catch {
-        // ignore errors here
+        // ignore
       }
     }
   };

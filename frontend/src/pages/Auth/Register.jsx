@@ -33,8 +33,6 @@ export default function Register() {
   const onChange = (e) => {
     const { name, value } = e.target;
     setValues((v) => ({ ...v, [name]: value }));
-    // Прибираємо помилку саме цього поля — інакше вона висітиме
-    // під інпутом, навіть коли юзер уже все виправив.
     setFieldErrors((prev) => {
       if (!prev[name]) return prev;
       const next = { ...prev };
@@ -70,9 +68,6 @@ export default function Register() {
       if (Object.keys(apiFieldErrors).length > 0) {
         setFieldErrors((prev) => ({ ...prev, ...apiFieldErrors }));
       }
-      // Якщо є конкретні помилки по полях — не дублюємо їх ще й загальним
-      // банером зверху, показуємо загальну помилку лише коли по полях
-      // сказати нічого (мережа, 429, 5xx).
       if (generalError && Object.keys(apiFieldErrors).length === 0) {
         setError(generalError);
       }

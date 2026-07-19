@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-// Mock axios — we need to control it fully for interceptor tests
 const mockAxiosInstance = {
   interceptors: {
     request: { use: vi.fn() },
@@ -75,7 +74,6 @@ describe('axios.js — PUBLIC_AUTH_PATHS exclusion', () => {
 
   it('does not attach Bearer to public login path', () => {
     const config = { url: '/users/login/', headers: {} }
-    // Get the request interceptor that was registered
     const requestInterceptor = api.interceptors.request.use.mock.calls[0]?.[0]
     if (requestInterceptor) {
       const result = requestInterceptor(config)

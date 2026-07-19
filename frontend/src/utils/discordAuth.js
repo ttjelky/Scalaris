@@ -1,10 +1,3 @@
-// Спільна логіка запуску Discord OAuth2 authorize-редіректу.
-// Використовується і для входу/реєстрації (Login/Register, анонімний
-// юзер), і для прив'язки Discord до вже залогіненого акаунту (Profile).
-// Обидва флоу повертаються на той самий redirect_uri
-// (`/oauth/discord/callback`) — а вже там DiscordCallback вирішує,
-// який ендпоінт бекенду смикнути, дивлячись на isAuthenticated.
-
 export const DISCORD_REDIRECT_PATH = '/oauth/discord/callback';
 
 /** Full redirect_uri sent to Discord authorize and echoed back to the backend. */
@@ -12,8 +5,6 @@ export function getDiscordRedirectUri() {
   return `${window.location.origin}${DISCORD_REDIRECT_PATH}`;
 }
 
-// OAuth codes are single-use. StrictMode remounts the callback component and
-// resets useRef, so guard at module scope to avoid exchanging the same code twice.
 let claimedCallbackCode = null;
 
 /** Returns true the first time a given Discord code is handled this page load. */

@@ -24,9 +24,6 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
 
   const isCreator = ongoingActivity && user && ongoingActivity.creator?.id === user.id;
 
-  // Переживає перезавантаження сторінки: React-стейт сам по собі зникає
-  // при reload, тож на кожен маунт питаємо бекенд, чи є в мене зараз
-  // live-збір, і якщо є — одразу показуємо ongoing-вʼю замість людей поруч.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -36,7 +33,6 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
           setOngoingActivity(data);
         }
       } catch {
-        // немає активного збору (або запит не вдався) — лишаємось на дефолтному екрані
       }
     })();
     return () => {
@@ -44,7 +40,6 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
     };
   }, []);
 
-  // Auto-expire cross activities on the client side when countdown hits 0.
   useEffect(() => {
     if (!ongoingActivity) return;
     if (ongoingActivity.category !== 'cross' || !ongoingActivity.duration_seconds) return;
@@ -54,11 +49,9 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
     setSheetState('collapsed');
   }, [ongoingElapsed, ongoingActivity, setSheetState]);
 
-  // Real-time participant updates via WebSocket (replaces 6-second polling).
   const { participants: wsParticipants, cancelled: wsCancelled } =
     useActivitySocket(ongoingActivity?.id || null);
 
-  // Merge WebSocket updates into ongoingActivity state.
   useEffect(() => {
     if (!ongoingActivity?.id) return;
     if (wsParticipants.length > 0) {
@@ -73,23 +66,17 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
     }
   }, [wsCancelled, ongoingActivity, setSheetState]);
 
-  // Distance from the user's current position to the ongoing gathering's
-  // point, shown under the "Збір" title in the sheet header.
   const ongoingDistanceLabel = useMemo(() => {
     if (!position || !ongoingActivity?.latitude || !ongoingActivity?.longitude) return null;
     const km = haversineDistanceKm(position, [ongoingActivity.latitude, ongoingActivity.longitude]);
     return formatDistance(km);
   }, [position, ongoingActivity]);
 
-  // Participant count for the ongoing gathering, shown in place of the
-  // back arrow while the sheet is collapsed.
   const ongoingParticipantsCount = useMemo(
     () => (ongoingActivity?.participants || []).length,
     [ongoingActivity]
   );
 
-  // Point + accepted-participant ids for the map, derived from the ongoing
-  // activity. null when there's nothing to show.
   const gatheringMapData = useMemo(() => {
     if (!ongoingActivity) return null;
     return {
@@ -111,11 +98,8 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
     const cps = ongoingActivity.checkpoints || [];
     if (cps.length === 0) return null;
 
-    // Find passed checkpoint IDs (from the creator's or first participant's perspective)
     const me = (ongoingActivity.participants || []).find((p) => p.id === user?.id);
     const myPassed = me?.passed_checkpoints || [];
-
-    // Current = first checkpoint not yet passed
     const current = cps.find((cp) => !myPassed.includes(cp.id)) || null;
 
     return {
@@ -132,7 +116,6 @@ export default function useOngoingActivity({ user, position, setSheetState, setH
     try {
       await api.post(`/activities/${ongoingActivity.id}/leave/`);
     } catch {
-      // best-effort — ховаємо локально в будь-якому разі, щоб не залипало в UI
     } finally {
       setLeaving(false);
       setOngoingActivity(null);

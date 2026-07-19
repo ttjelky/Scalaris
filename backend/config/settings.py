@@ -18,9 +18,6 @@ DEBUG = config('DEBUG', default='True').lower() == 'true'
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
-
-# Application definition
-
 INSTALLED_APPS = [
     'daphne',
     'channels',
@@ -74,7 +71,6 @@ TEMPLATES = [
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# --- CORS ---
 CORS_ALLOWED_ORIGINS = [
     'https://localhost:5174',
     'https://127.0.0.1:5174',
@@ -89,11 +85,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost:5174',
     'https://127.0.0.1:5174',
 ]
-# --- Media (avatar) ---
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# --- DRF: пагінація ---
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -102,15 +96,14 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'login': '10/min',           # захист від brute-force підбору пароля
-        'register': '5/hour',        # захист від масової реєстрації ботами
-        'password_reset': '5/hour',  # захист від спаму reset-листами на чужу пошту
+        'login': '10/min',           
+        'register': '5/hour',        
+        'password_reset': '5/hour',  
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
 
-# --- JWT ---
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),

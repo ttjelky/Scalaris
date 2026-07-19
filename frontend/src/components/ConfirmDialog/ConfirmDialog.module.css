@@ -70,8 +70,6 @@
   margin-top: 16px;
 }
 
-/* Shared with ProfileEditForm.module.css's cancel button — duplicated here
-   so this dialog can be dropped in anywhere on its own. */
 .cancelButton {
   flex: 1;
   border: none;

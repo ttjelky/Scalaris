@@ -22,7 +22,6 @@ class SendFriendRequestView(APIView):
 
         target = get_object_or_404(User, pk=pk)
 
-        # Перевірка на блокування
         if Block.objects.filter(blocker=target, blocked=request.user).exists():
             return Response(
                 {'detail': 'Ви не можете надіслати запит цьому користувачу.'},
@@ -34,14 +33,12 @@ class SendFriendRequestView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Перевірка чи не є вони вже друзями
         if request.user.friends.filter(pk=pk).exists():
             return Response(
                 {'detail': 'Ви вже друзі.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Якщо інший користувач уже надіслав запит — приймаємо автоматично
         incoming = FriendRequest.objects.filter(from_user=target, to_user=request.user).first()
         if incoming:
             request.user.friends.add(target)
@@ -62,7 +59,6 @@ class SendFriendRequestView(APIView):
             'friendship_status': 'request_sent',
         }
 
-        # Real-time notification via WebSocket
         try:
             from apps.activities.models import Invitation
             fr_count = FriendRequest.objects.filter(to_user=target).count()
@@ -82,23 +78,17 @@ class AcceptFriendRequestView(APIView):
         friend_request = get_object_or_404(FriendRequest, pk=pk, to_user=request.user)
         from_user = friend_request.from_user
 
-        # Додаємо один одного в друзі
         request.user.friends.add(from_user)
 
-        # Видаляємо виконаний запит
         friend_request.delete()
 
-        # Видаляємо зустрічний запит, якщо такий випадково є
         FriendRequest.objects.filter(from_user=request.user, to_user=from_user).delete()
 
-        # Real-time notification: update both users' notification counts
         try:
             from apps.activities.models import Invitation
-            # Notify the original sender (their request was accepted → count decreases)
             fr_count = FriendRequest.objects.filter(to_user=from_user).count()
             inv_count = Invitation.objects.filter(to_user=from_user, status='pending').count()
             notify_user(from_user.pk, fr_count + inv_count)
-            # Notify the accepting user too (their received requests changed)
             fr_count_me = FriendRequest.objects.filter(to_user=request.user).count()
             inv_count_me = Invitation.objects.filter(to_user=request.user, status='pending').count()
             notify_user(request.user.pk, fr_count_me + inv_count_me)
@@ -113,19 +103,16 @@ class RejectFriendRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk):
-        # Дозволяємо видалити запит як тому, хто отримав, так і тому, хто надіслав
         friend_request = get_object_or_404(
             FriendRequest,
             Q(to_user=request.user) | Q(from_user=request.user),
             pk=pk
         )
 
-        # Determine which user to notify (the one who didn't trigger the delete)
         other_user = friend_request.from_user if friend_request.to_user == request.user else friend_request.to_user
 
         friend_request.delete()
 
-        # Real-time notification
         try:
             from apps.activities.models import Invitation
             fr_count = FriendRequest.objects.filter(to_user=other_user).count()

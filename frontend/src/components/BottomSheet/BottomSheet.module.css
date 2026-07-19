@@ -28,10 +28,6 @@
     box-shadow 0.28s cubic-bezier(0.4, 0, 1, 1);
 }
 
-/* While actively dragging, the transform is written straight to the DOM
-   node (see applyDragTransform in Home.jsx), so the CSS transition must be
-   switched off — otherwise it fights the per-frame updates and the sheet
-   feels sluggish. */
 .sheetDragging {
   transition: none;
   backdrop-filter: blur(8px);
@@ -44,10 +40,6 @@
   transition: none;
 }
 
-/* Small badge state: only the handle + hero row stay visible. The text and
-   list below animate out via their own max-height/opacity transitions
-   (see .heroText / .userList) instead of snapping with display:none, so the
-   whole sheet reads as one continuous collapse rather than a hard cut. */
 .sheetCollapsed {
   max-height: 108px;
   padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
@@ -104,10 +96,6 @@
   font-size: 0.5rem;
 }
 
-/* Peek state should only ever show the handle + hero row. The participants
-   title/list/leave button below have no collapse animation of their own
-   (unlike .heroText / .userList), so without this they'd otherwise peek
-   out from under the clipped max-height as a sliver of text. */
 .sheetCollapsed .ongoingParticipantsTitle,
 .sheetCollapsed .ongoingParticipantsList,
 .sheetCollapsed .checkpointProgress,
@@ -287,8 +275,6 @@
   animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Smaller, tabular variant of .heroBadgeValue used for the live "mm:ss"
-   clock so longer durations (e.g. "1:02:07") still fit inside the circle. */
 .heroBadgeValueClock {
   font-size: 0.92rem;
   font-variant-numeric: tabular-nums;
@@ -714,9 +700,6 @@
   left: 50%;
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 100px);
   transform: translateX(-50%);
-  /* Must stay above .sheet, whose z-index jumps to 750 on mobile (see the
-     max-width:768px rule below) — otherwise the sheet header renders on top
-     and clips this badge instead of it being layered over the sheet. */
   z-index: 800;
   padding: 6px 14px;
   border-radius: 999px;

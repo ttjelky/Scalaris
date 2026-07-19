@@ -1,6 +1,4 @@
 import { PARTICIPANT_STATUS } from '../../utils/activity';
-// Shares BottomSheet's stylesheet — see the note at the top of
-// BottomSheet.jsx for why these classes aren't split into their own file.
 import styles from '../BottomSheet/BottomSheet.module.css';
 
 export default function ZonePanel({ selectedZone, isZoneCreator, deleting, onHide, onDelete }) {

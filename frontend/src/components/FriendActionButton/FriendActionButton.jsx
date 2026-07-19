@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   acceptFriendRequest,
   rejectFriendRequest,
@@ -117,7 +118,7 @@ export default function FriendActionButton({ userId, friendshipStatus, friendReq
           {loading ? 'Видаляємо…' : 'Видалити з друзів'}
         </button>
 
-        {confirmingRemove && (
+        {confirmingRemove && createPortal(
           <ConfirmDialog
             title="Видалити з друзів?"
             text="Ви більше не будете бачити одне одного у списку друзів. Надіслати запит повторно можна буде будь-коли."
@@ -126,7 +127,8 @@ export default function FriendActionButton({ userId, friendshipStatus, friendReq
             loading={loading}
             onConfirm={onRemoveFriend}
             onCancel={() => setConfirmingRemove(false)}
-          />
+          />,
+          document.body,
         )}
       </div>
     );

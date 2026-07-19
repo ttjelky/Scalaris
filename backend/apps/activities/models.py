@@ -49,11 +49,6 @@ class Activity(models.Model):
     category = models.CharField(max_length=20, choices=Category.choices)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # --- Live-зустріч (реальний час) ---
-    # live_status керує тим, чи активна зараз live-сесія: чи можна шерити
-    # позицію і бачити маркери учасників на карті. Це НЕ те саме, що
-    # started_at (запланований час) — активність може бути 'pending' ще
-    # довго після started_at, поки хтось не прийме запрошення.
     live_status = models.CharField(
         max_length=20,
         choices=LiveStatus.choices,
@@ -69,13 +64,11 @@ class Activity(models.Model):
     )
     completed_at = models.DateTimeField(null=True, blank=True)
 
-    # --- Крос (тільки для category='cross') ---
     duration_seconds = models.PositiveIntegerField(
         null=True, blank=True,
         help_text='Тривалість кросу в секундах (для category=cross)'
     )
 
-    # --- Ігрова зона (тільки для category='zone') ---
     is_friends_only = models.BooleanField(
         default=False,
         help_text='Якщо True — зона видна тільки друзям творця'
@@ -244,7 +237,6 @@ class Invitation(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # --- Live-зустріч (реальний час) ---
     responded_at = models.DateTimeField(
         null=True, blank=True,
         help_text='Коли to_user прийняв/відхилив запрошення'

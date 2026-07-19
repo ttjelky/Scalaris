@@ -309,14 +309,8 @@
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* FIX: раніше тут стояло min-width:1024px, а мобільна версія (в
-   home.module.css) вимикається на max-width:768px. Між 769px і 1023px не
-   спрацьовував жоден з варіантів — бургер лишався в потоці зліва.
-   Тепер межа співпадає з мобільною (769px), дірки немає. */
 @media (min-width: 769px) {
   .burger {
-    /* без position:fixed top/right нижче ігнорувались браузером,
-       і бургер лишався в потоці зліва замість правого верхнього кута. */
     position: fixed;
     top: 20px;
     right: 20px;

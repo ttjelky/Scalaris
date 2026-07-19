@@ -108,7 +108,6 @@ export default function GameZoneForm({ initialPosition, onCancel, onCreated }) {
       markerRef.current = null;
       circleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRadiusChange = (val) => {

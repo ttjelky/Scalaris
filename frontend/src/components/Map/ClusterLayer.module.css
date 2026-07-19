@@ -1,6 +1,3 @@
-/* Popup list shown when a cluster marker is clicked, enumerating everyone
-   folded into that cluster. Content lives inside React's tree (unlike the
-   divIcon HTML strings in icons.js), so these can be normal CSS-module classes. */
 .clusterPopupList {
   display: flex;
   flex-direction: column;
@@ -44,9 +41,6 @@
   justify-content: center;
 }
 
-/* Same accent-ring treatment as an accepted person's marker on the map
-   (see .personAvatarAccepted in icons.module.css) — duplicated here since
-   it's applied to a plain React element inside the popup, not a divIcon. */
 .personAvatarAccepted {
   border: 3px solid var(--color-accent, #c6ff3d);
   box-shadow: 0 2px 8px rgba(198, 255, 61, 0.5);
@@ -82,10 +76,6 @@
   text-overflow: ellipsis;
 }
 
-/* Leaflet's default popup chrome is a light box meant for a light map —
-   restyle it to match the dark pill treatment used elsewhere on the map.
-   Popup content is inside React's tree, but the wrapper/tip/close-button
-   chrome around it is rendered by Leaflet itself, so those stay global. */
 :global(.leaflet-popup-content-wrapper) {
   background: var(--color-ink, #0b0b0c);
   border-radius: var(--radius-lg, 14px);
@@ -104,11 +94,6 @@
   animation: popupTipFadeIn 0.2s ease-out;
 }
 
-/* Entrance animation for the popup wrapper above. Kept as a scale+rise
-   rather than a plain fade so the popup visually "pops out of" the marker
-   it belongs to. Tip only fades (not scales) since it already carries
-   Leaflet's own rotate(45deg) transform, and animating scale on top of
-   that would fight the rotation. */
 @keyframes popupPopIn {
   0% {
     opacity: 0;
@@ -129,10 +114,6 @@
   }
 }
 
-/* Nickname label shown above a user's dot once the map is zoomed in enough
-   (see LABEL_ZOOM_THRESHOLD in MapView.jsx). Leaflet renders tooltips
-   outside of React's tree, so this has to be a plain global class rather
-   than a CSS-module one. */
 :global(.map-user-label) {
   background: var(--color-ink, #0b0b0c);
   color: var(--color-bg, #ffffff);
@@ -149,8 +130,6 @@
   pointer-events: none;
 }
 
-/* Strip Leaflet's default tooltip arrow — it's styled for a light box on
-   a light map, and clashes with our dark pill. */
 :global(.map-user-label)::before {
   display: none;
 }

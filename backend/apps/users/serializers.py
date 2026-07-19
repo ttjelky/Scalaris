@@ -102,8 +102,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
     
 class FriendRequestSerializer(serializers.ModelSerializer):
-    # read_only=True гарантує, що ми використовуємо ці серіалізатори лише для читання даних,
-    # а не для їх створення через API
     from_user = UserPublicSerializer(read_only=True)
     to_user = UserPublicSerializer(read_only=True)
 

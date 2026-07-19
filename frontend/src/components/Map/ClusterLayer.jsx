@@ -4,16 +4,8 @@ import { Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import { makeClusterIcon, makePersonIcon } from './icons';
 import styles from './ClusterLayer.module.css';
 
-// How close two people need to be on screen (in pixels, not meters) before
-// they're folded into one cluster marker. Pixel-based rather than
-// distance-based on purpose: at low zoom lots of real-world meters map to
-// a few screen pixels, so the "are these dots overlapping" question is
-// inherently a screen-space one, and it naturally re-splits as you zoom in.
 const CLUSTER_PIXEL_RADIUS = 28;
 
-// Greedy single-link grouping: walk the list, and any not-yet-used point
-// within radiusPx of the current seed joins its group. Good enough for a
-// few dozen nearby users — no need for a full clustering library here.
 function clusterPeople(map, people, radiusPx) {
   const points = people.map((person) => ({
     person,
@@ -44,10 +36,6 @@ function clusterPeople(map, people, radiusPx) {
   return groups;
 }
 
-// Small avatar used inside the cluster popup list — same fallback pattern
-// as the map markers (initial letter if there's no photo or it fails to
-// load), but as a normal React element since popup content lives inside
-// React's tree, unlike the divIcon HTML strings in icons.js.
 function ClusterPopupAvatar({ person }) {
   const [broken, setBroken] = useState(false);
   const initial = (person.username || '?').slice(0, 1).toUpperCase();
@@ -68,12 +56,6 @@ function ClusterPopupAvatar({ person }) {
   );
 }
 
-// Renders nearbyUsers as either single avatar markers (unchanged behavior)
-// or, when several people are close enough together on screen to overlap,
-// as one cluster marker showing a count. Clicking a cluster opens a popup
-// listing everyone in that spot instead of trying to show every avatar.
-// Clusters are recomputed on pan/zoom (screen-space distance depends on
-// both) and whenever the underlying people list changes.
 export default function ClusterLayer({ people, acceptedIds, showLabels, onSelectPerson }) {
   const map = useMap();
   const [groups, setGroups] = useState([]);

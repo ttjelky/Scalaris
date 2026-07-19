@@ -2,9 +2,6 @@ import { Marker, Polyline, Tooltip } from 'react-leaflet';
 
 import { makeCheckpointIcon } from './icons';
 import useOsrmRoute from './useOsrmRoute';
-// Side-effect import: the tooltip's global ".map-checkpoint-label" class is
-// referenced by name (Leaflet renders tooltips outside React's tree), so
-// nothing here uses the `styles` export — this just gets the CSS bundled.
 import './CheckpointLayer.module.css';
 
 const ROUTE_PATH_OPTIONS = {
@@ -15,8 +12,6 @@ const ROUTE_PATH_OPTIONS = {
   dashArray: '1, 10',
 };
 
-// Numbered markers for every checkpoint in a cross activity, plus a walking
-// route from `userPosition` to whichever one is current.
 export default function CheckpointLayer({ checkpoints, currentCheckpointId, passedCheckpointIds, userPosition }) {
   const currentCheckpoint = checkpoints?.find((cp) => cp.id === currentCheckpointId) || null;
   const currentCheckpointPos = currentCheckpoint

@@ -1,6 +1,5 @@
 import '@testing-library/jest-dom'
 
-// Stub window.matchMedia used by some components
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (query) => ({
@@ -15,7 +14,6 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
-// Stub navigator.geolocation
 Object.defineProperty(navigator, 'geolocation', {
   writable: true,
   value: {
@@ -25,7 +23,6 @@ Object.defineProperty(navigator, 'geolocation', {
   },
 })
 
-// Stub IntersectionObserver
 class MockIntersectionObserver {
   constructor() {}
   observe() { return null }
@@ -49,7 +46,6 @@ Object.defineProperty(window, 'ResizeObserver', {
   value: MockResizeObserver,
 })
 
-// Suppress console.error in tests (React act warnings etc.)
 const originalError = console.error
 beforeAll(() => {
   console.error = (...args) => {

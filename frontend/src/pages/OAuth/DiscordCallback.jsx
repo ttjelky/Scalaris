@@ -26,9 +26,6 @@ export default function DiscordCallback() {
       : '';
 
   useEffect(() => {
-    // Чекаємо, поки AuthProvider визначить, є валідна сесія чи ні — від
-    // цього залежить, який флоу (лінк проти вже залогіненого юзера, чи
-    // логін/реєстрація анонімного) треба виконати нижче.
     if (loading) return;
     if (initialError) return;
     if (!claimDiscordCallback(code)) {
@@ -36,8 +33,6 @@ export default function DiscordCallback() {
     }
 
     if (isAuthenticated) {
-      // Юзер уже залогінений (прийшов сюди з кнопки "Підключити" в
-      // профілі) — прив'язуємо Discord до поточного акаунту.
       api
         .post('/users/oauth/discord/link/', {
           code,
@@ -57,9 +52,6 @@ export default function DiscordCallback() {
       return;
     }
 
-    // Анонімний юзер (прийшов з кнопки "Увійти через Discord" на
-    // Login/Register) — логін або, якщо такого акаунту ще нема,
-    // автоматична реєстрація через Discord-профіль.
     loginWithDiscord(code)
       .then(() => {
         navigate('/home', { replace: true });
@@ -70,7 +62,6 @@ export default function DiscordCallback() {
         });
         setError(generalError);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, isAuthenticated]);
 
   const backTarget = isAuthenticated ? '/profile' : '/login';

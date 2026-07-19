@@ -1,6 +1,3 @@
-// Invitation.Status choices from the backend, mapped to display text and
-// a CSS-module class suffix for the status badge shown next to a
-// participant (used by both the ongoing-activity and game-zone panels).
 export const PARTICIPANT_STATUS = {
   pending: { label: 'очікування', className: 'statusPending' },
   accepted: { label: 'прийнято', className: 'statusAccepted' },
@@ -9,8 +6,6 @@ export const PARTICIPANT_STATUS = {
   left: { label: 'вийшов(ла)', className: 'statusLeft' },
 };
 
-// Formats elapsed ms as a compact clock string for the small hero badge,
-// e.g. "05:23" or "1:02:07" once it runs past an hour.
 export function formatClock(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
@@ -21,8 +16,6 @@ export function formatClock(ms) {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-// Same duration, but as a friendly phrase for the expanded body text,
-// e.g. "5 хв 23 с" or "1 год 4 хв".
 export function formatDurationLong(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
@@ -46,8 +39,6 @@ export function haversineDistanceKm([lat1, lon1], [lat2, lon2]) {
   return R * c;
 }
 
-// Formats a distance in km as a short label for the hero row, switching to
-// meters under 1 km, e.g. "850 м" or "3.4 км".
 export function formatDistance(km) {
   if (km == null || Number.isNaN(km)) return null;
   if (km < 1) return `${Math.round(km * 1000)} м`;

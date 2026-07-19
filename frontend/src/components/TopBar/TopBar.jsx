@@ -2,10 +2,6 @@ import { Link } from 'react-router-dom';
 import Navbar from '../Navbar/Navbar';
 import styles from './TopBar.module.css';
 
-// Only one activity type exists for now. Kept as a list so more can be
-// added later without reshaping the pill row or the sheet-switching logic.
-// Exported so Home can look activities up by id (e.g. to pick which form
-// to render, or to read the label of the one currently being created).
 export const ACTIVITIES = [
   {
     id: 'gathering',
@@ -58,10 +54,6 @@ export const ACTIVITIES = [
   },
 ];
 
-// Renders both the mobile header row (topbar) and the desktop right-hand
-// icon column (rightSidebar). Both are always in the DOM; Home.module.css's
-// media queries decide which one is actually visible at a given width, so
-// the two must stay in sync with each other.
 export default function TopBar({
   user,
   position,

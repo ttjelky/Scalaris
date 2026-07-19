@@ -6,12 +6,6 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // `loading` означає ОДНЕ конкретне: "ми ще не знаємо, чи є валідна сесія"
-  // (перевірка при старті додатку). Це НЕ індикатор "триває запит логіну" —
-  // за це відповідає локальний `pending` у самих формах Login/Register.
-  // Раніше login() теж смикав цей прапорець, і будь-яка спроба входу
-  // (навіть з неправильним паролем) на мить показувала повноекранний
-  // "Checking your session..." замість форми з помилкою.
   const [loading, setLoading] = useState(true);
   const [authFailed, setAuthFailed] = useState(false);
   const authBootstrapPromiseRef = useRef(null);

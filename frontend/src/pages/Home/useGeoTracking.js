@@ -48,7 +48,6 @@ export default function useGeoTracking(isAuthenticated) {
 
         if (!authRef.current) return;
 
-        // nearby users (best-effort)
         try {
           const { data } = await api.get('/activities/locations/nearby/', {
             params: {
@@ -62,7 +61,6 @@ export default function useGeoTracking(isAuthenticated) {
           setNearbyUsers([]);
         }
 
-        // active game zones nearby (best-effort)
         try {
           const { data } = await api.get('/activities/zones/nearby/', {
             params: {
@@ -85,7 +83,6 @@ export default function useGeoTracking(isAuthenticated) {
           setActiveZones([]);
         }
 
-        // sync location to backend (best-effort)
         try {
           await api.post('/activities/locations/', {
             latitude: pos.coords.latitude,
@@ -107,7 +104,6 @@ export default function useGeoTracking(isAuthenticated) {
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
     );
 
-    // Fallback: якщо через 12s немає відповіді — показати повідомлення
     const fallback = setTimeout(() => {
       if (!didRespond) {
         setLoading(false);

@@ -22,13 +22,10 @@ TEST_CHANNEL_LAYERS = {
     'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
 }
 
-# Kyiv coordinates, used as a stable "home" point for most tests.
 KYIV_LAT, KYIV_LNG = 50.4501, 30.5234
-
 
 def make_point(lat, lng):
     return Point(lng, lat, srid=4326)
-
 
 @override_settings(CHANNEL_LAYERS=TEST_CHANNEL_LAYERS)
 class BaseActivityTestCase(APITestCase):

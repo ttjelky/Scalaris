@@ -15,8 +15,6 @@ export default function BlockedUsers() {
     setLoading(true);
     setError('');
 
-    // BlockedUsersListView на бекенді зареєстрований як users/blocked/
-    // (див. urls.py), бере request.user неявно — без /me/ в шляху.
     api
       .get('/users/blocked/')
       .then(({ data }) => {
@@ -41,7 +39,6 @@ export default function BlockedUsers() {
       await api.delete(`/users/${id}/block/`);
       setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch {
-      // best-effort — юзер лишається у списку, кнопка лишається клікабельною для повтору
     } finally {
       setUnblockingId(null);
     }

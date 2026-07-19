@@ -2,8 +2,6 @@ import { Circle, Marker, Polyline, Tooltip } from 'react-leaflet';
 
 import { gatheringIcon } from './icons';
 import useOsrmRoute from './useOsrmRoute';
-// Side-effect import: the tooltip's global ".map-gathering-label" class is
-// referenced by name (Leaflet renders tooltips outside React's tree).
 import './GatheringLayer.module.css';
 
 const ZONE_PATH_OPTIONS = {
@@ -21,11 +19,6 @@ const ROUTE_PATH_OPTIONS = {
   dashArray: '1, 10',
 };
 
-// `gathering`: { point: [lat, lng], title, category, acceptedIds, radius }
-// for the currently ongoing "Збір". Renders the gathering point itself
-// (a highlighted zone circle if category is 'zone', otherwise a pulsing
-// marker with a title tooltip) and, for point gatherings, a walking route
-// from the user's current `position` to it.
 export default function GatheringLayer({ gathering, position }) {
   const isZone = gathering?.category === 'zone';
   const routeCoords = useOsrmRoute(

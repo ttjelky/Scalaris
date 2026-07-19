@@ -4,8 +4,8 @@
   --color-surface: #f5f5f3;
   --color-ink: #111111;
   --color-ink-soft: #6e6e6e;
-  --color-accent: #c6ff3e; /* Volt lime — matches the Welcome primary button */
-  --color-volt: #eaff6e; /* brighter lime used for the running highlight */
+  --color-accent: #c6ff3e; 
+  --color-volt: #eaff6e; 
   --color-line: #e7e7e4;
   --color-danger: #e0311c;
 

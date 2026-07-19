@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import OngoingActivityPanel from '../../components/OngoingActivityPanel/OngoingActivityPanel';
 import ZonePanel from '../../components/ZonePanel/ZonePanel';
 import NearbyUsersList from '../../components/NearbyUsersList/NearbyUsersList';
-// formLoading is a sheet-content style, so it lives in BottomSheet's module.
 import sheetStyles from '../../components/BottomSheet/BottomSheet.module.css';
 
 const ActivityForm = lazy(() => import('../../components/ActivityForm/ActivityForm'));

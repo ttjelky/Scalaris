@@ -62,8 +62,6 @@ class PasswordResetTests(BaseAPITestCase):
         })
         self.assertEqual(first.status_code, 200)
 
-        # Той самий (все ще підписаний правильно і не протух за часом) токен
-        # більше не спрацює, бо пароль вже змінився -> fingerprint не збігається.
         second = self.client.post('/api/users/password-reset-confirm/', {
             'token': token, 'password': 'SecondNew123!', 'password_confirm': 'SecondNew123!',
         })

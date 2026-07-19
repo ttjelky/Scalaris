@@ -65,7 +65,6 @@ describe('CheckpointLayer', () => {
       passedCheckpointIds: [],
       userPosition: null,
     })
-    // The current checkpoint (#1) has no tooltip; the other two do.
     expect(container.querySelectorAll('.map-checkpoint-label').length).toBe(2)
   })
 

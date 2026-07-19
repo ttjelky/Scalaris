@@ -1,6 +1,4 @@
 import { Link } from 'react-router-dom';
-// Shares BottomSheet's stylesheet — see the note at the top of
-// BottomSheet.jsx for why these classes aren't split into their own file.
 import styles from '../BottomSheet/BottomSheet.module.css';
 
 export default function NearbyUsersList({ nearbyUsersFiltered, friendsOnly, sheetState }) {

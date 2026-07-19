@@ -113,7 +113,6 @@ export default function useNotifications(enabled = false) {
     };
   }, [enabled]);
 
-  /** Manually request a count refresh from the server. */
   const refreshCount = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: 'get_count' }));

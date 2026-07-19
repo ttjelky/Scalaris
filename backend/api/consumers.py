@@ -45,7 +45,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # Send initial count
         count = await self.get_notification_count()
         await self.send(text_data=json.dumps({
             'type': 'notification_count',
@@ -126,9 +125,7 @@ class ActivityConsumer(AsyncWebsocketConsumer):
         if not self.user:
             await self.close(code=4001)
             return
-
-        # Only allow creator or participants to connect.
-        # Nonexistent activities are allowed (returns "unknown" state).
+            
         is_participant = await self._is_participant()
         if is_participant is False:
             await self.close(code=4003)
@@ -138,7 +135,6 @@ class ActivityConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # Send current state
         state = await self.get_activity_state()
         if state:
             await self.send(text_data=json.dumps({

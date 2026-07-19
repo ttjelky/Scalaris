@@ -1,8 +1,5 @@
 import styles from './ProfileAvatarSection.module.css';
 
-// `showAvatarImg` / `displayAvatar` are computed by the caller (Profile.jsx)
-// since they depend on both the freshly-picked file preview and whether the
-// image previously failed to load.
 export default function ProfileAvatarSection({
   profile,
   isOwnProfile,

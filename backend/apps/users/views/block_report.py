@@ -56,7 +56,7 @@ class BlockView(APIView):
 
 
 class BlockedUsersListView(generics.ListAPIView):
-    """GET /api/users/blocked/ — список юзерів, яких я заблокував."""
+    """GET /api/users/blocked/"""
     serializer_class = UserPublicSerializer
     permission_classes = [permissions.IsAuthenticated]
 

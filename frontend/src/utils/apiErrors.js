@@ -1,8 +1,3 @@
-// Бекенд (DRF / Django / simplejwt) досі повертає частину повідомлень
-// англійською (валідатори пароля, "field is required" тощо). Цей словник
-// ловить повторювані патерни і підміняє їх на зрозумілий український
-// текст. Все нерозпізнане падає у fallback, а не показується юзеру
-// сирим англійським рядком.
 const TRANSLATIONS = [
   [/no active account/i, 'Неправильний email/юзернейм або пароль.'],
   [/already exists/i, 'Такий email вже зареєстровано.'],
@@ -24,8 +19,6 @@ const TRANSLATIONS = [
   [/invalid redirect_uri/i, 'Невідповідний redirect URI. Перевір налаштування Discord OAuth.'],
 ];
 
-// Ключі полів, які бекенд називає інакше, ніж стейт у формі
-// (snake_case на бекенді vs camelCase у React-компонентах).
 const KEY_ALIASES = {
   password_confirm: 'passwordConfirm',
 };
@@ -58,7 +51,6 @@ const SERVER_MESSAGE = 'Сервер тимчасово недоступний. 
  */
 export function parseApiError(err, { fallback = 'Щось пішло не так. Спробуй ще раз.' } = {}) {
   if (!err.response) {
-    // немає response взагалі — обірваний запит, немає інтернету, CORS тощо
     return { fieldErrors: {}, generalError: NETWORK_MESSAGE };
   }
 

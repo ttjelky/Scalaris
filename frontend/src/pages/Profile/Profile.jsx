@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -23,8 +24,6 @@ export default function Profile() {
   const navigate = useNavigate();
   const { logout, updateUser } = useAuth();
 
-  // No :id in the route (came from "/profile") → this is the logged-in
-  // user's own profile, fetched via /users/me/ and editable.
   const isOwnProfile = !id;
 
   const [profile, setProfile] = useState(null);
@@ -260,7 +259,7 @@ export default function Profile() {
         )}
       </div>
 
-      {confirmingLogout && (
+      {confirmingLogout && createPortal(
         <ConfirmDialog
           title="Вийти з акаунту?"
           text="Доведеться увійти знову, щоб продовжити користуватись застосунком."
@@ -269,10 +268,11 @@ export default function Profile() {
           loading={loggingOut}
           onConfirm={onConfirmLogout}
           onCancel={() => setConfirmingLogout(false)}
-        />
+        />,
+        document.body,
       )}
 
-      {confirmingBlock && (
+      {confirmingBlock && createPortal(
         <ConfirmDialog
           title={`Заблокувати ${profile.username}?`}
           text="Ви перестанете бачити одне одного на карті. Скасувати блокування можна будь-коли."
@@ -281,7 +281,8 @@ export default function Profile() {
           loading={togglingBlock}
           onConfirm={onToggleBlock}
           onCancel={() => setConfirmingBlock(false)}
-        />
+        />,
+        document.body,
       )}
     </div>
   );

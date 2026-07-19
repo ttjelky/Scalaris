@@ -111,9 +111,6 @@ class PasswordResetConfirmView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Reject a token that's already been used (or superseded by a newer
-        # reset request): the fingerprint only matches the password that
-        # was current at the moment the token was issued.
         if reset_token.get('pwd_fp') != _password_fingerprint(user):
             return Response(
                 {'detail': 'Invalid or expired reset token.'},

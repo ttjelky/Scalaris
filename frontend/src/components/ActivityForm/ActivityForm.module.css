@@ -264,8 +264,6 @@
   font-size: 0.85rem;
 }
 
-/* Hover states are scoped to pointer:fine devices so a tap on mobile never
-   leaves a button visually "stuck" in its hover look. */
 @media (hover: hover) and (pointer: fine) {
   .locationBtn:hover {
     background: var(--color-accent, #c6ff3d);

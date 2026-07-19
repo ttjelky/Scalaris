@@ -19,11 +19,6 @@ export const ownIcon = L.divIcon({
 const PERSON_AVATAR_SIZE = 26;
 const ACCEPTED_AVATAR_SIZE = 30;
 
-// Builds a divIcon showing the person's avatar photo instead of a plain
-// dot. If there's no avatar URL, or the image fails to load (broken link,
-// offline, etc.), it falls back to a circle with the first letter of the
-// username — same pattern as the fallback in Profile.jsx. The onerror is
-// inlined since divIcon content lives outside React's tree.
 export function makePersonIcon(person, isAccepted) {
   const size = isAccepted ? ACCEPTED_AVATAR_SIZE : PERSON_AVATAR_SIZE;
   const ringClass = isAccepted ? styles.personAvatarAccepted : '';
@@ -49,9 +44,6 @@ export function makePersonIcon(person, isAccepted) {
 
 const CLUSTER_SIZE = 34;
 
-// Builds a divIcon for a group of people who are standing too close
-// together on screen to show as separate avatars — a count badge instead
-// of a photo. Rings accent-colored if anyone inside accepted the gathering.
 export function makeClusterIcon(count, hasAccepted) {
   const ringClass = hasAccepted ? styles.clusterAccepted : '';
   return L.divIcon({
@@ -62,8 +54,6 @@ export function makeClusterIcon(count, hasAccepted) {
   });
 }
 
-// The gathering point itself — bigger, pulsing, visually distinct from
-// both "me" and "other people" dots.
 export const gatheringIcon = L.divIcon({
   className: `leaflet-dot-icon ${styles.gatheringMarker}`,
   iconSize: [22, 22],

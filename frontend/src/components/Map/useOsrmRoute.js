@@ -1,12 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-// Fetches a foot-travel route between two [lat, lng] points from the public
-// OSRM demo server and returns it as an array of [lat, lng] pairs (or null
-// while there's nothing to show — missing endpoints, `enabled` is false, or
-// the request failed/returned no route).
-//
-// `enabled` lets a caller skip the request entirely — e.g. there's no
-// active checkpoint, or the gathering is a zone rather than a point.
 export default function useOsrmRoute(from, to, enabled = true) {
   const routeKey = useMemo(() => {
     if (!enabled || !from || !to) return null;

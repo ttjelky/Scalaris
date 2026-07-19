@@ -17,8 +17,6 @@ from ..serializers import UserSerializer
 
 
 class DiscordAuthRateThrottle(AnonRateThrottle):
-    # Reuses the 'login' scope — a Discord auth attempt is a login attempt
-    # for rate-limiting purposes, same as the password-based one.
     scope = 'login'
 
 
@@ -150,8 +148,6 @@ class DiscordAuthView(DiscordOAuthMixin, APIView):
 
     permission_classes = [permissions.AllowAny]
     throttle_classes = [DiscordAuthRateThrottle]
-    # Same as EmailTokenObtainPairView: stale Authorization headers must not
-    # block issuing fresh credentials on this public login/register endpoint.
     authentication_classes = []
 
     def post(self, request):
@@ -173,9 +169,6 @@ class DiscordAuthView(DiscordOAuthMixin, APIView):
         user = User.objects.filter(discord_id=discord_id).first()
 
         if user is None:
-            # No account linked to this Discord ID yet. If an account with
-            # the same email already exists, it was created a different
-            # way — refuse instead of silently linking it.
             if email and User.objects.filter(email__iexact=email).exists():
                 return Response(
                     {'detail': 'no_linked_account'},
@@ -202,8 +195,6 @@ class DiscordAuthView(DiscordOAuthMixin, APIView):
             discord_id=discord_id,
             discord_username=profile.get('username') or '',
         )
-        # No password was ever set on our side — Discord is the only way
-        # to log into this account, exactly as requested.
         user.set_unusable_password()
         user.save()
         return user

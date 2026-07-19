@@ -18,7 +18,6 @@ class NotificationsView(APIView):
 
         notifications = []
 
-        # --- Friend requests ---
         friend_requests = FriendRequest.objects.filter(
             to_user=request.user
         ).select_related('from_user').order_by('-created_at')
@@ -32,7 +31,6 @@ class NotificationsView(APIView):
                 'activity': None,
             })
 
-        # --- Activity invitations ---
         invitations = Invitation.objects.filter(
             to_user=request.user,
             status=Invitation.Status.PENDING,
@@ -54,7 +52,6 @@ class NotificationsView(APIView):
                 },
             })
 
-        # Sort all notifications by created_at descending
         notifications.sort(key=lambda n: n['created_at'], reverse=True)
 
         return Response(notifications)

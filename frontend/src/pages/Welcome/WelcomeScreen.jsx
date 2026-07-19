@@ -14,10 +14,6 @@ const DEFAULT_SLIDES = [slide1, slide2, slide3, slide4];
 
 export default function WelcomeScreen({ images, backgroundImage }) {
   useDocumentBackground('#0e0e10');
-
-  // Back-compat: a single `backgroundImage` still works (wrapped as a
-  // 1-item, non-animating "slideshow"); otherwise use the provided/default
-  // slide set.
   const slides = images ?? (backgroundImage ? [backgroundImage] : DEFAULT_SLIDES);
 
   const reduceMotion = useMemo(
