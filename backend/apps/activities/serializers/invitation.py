@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 from apps.users.serializers import UserPublicSerializer
-from .models import Activity, Invitation
+from ..models import Activity, Invitation
 
 
 class InvitationSerializer(serializers.ModelSerializer):

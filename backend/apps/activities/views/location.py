@@ -9,9 +9,9 @@ from rest_framework.response import Response
 
 from apps.users.serializers import UserPublicSerializer
 from apps.users.models import Block
-from .models import Activity, HiddenActivity, Invitation, Location
-from .permissions import IsCreatorOrReadOnly
-from .serializers import ActivityListSerializer, ActivitySerializer, LocationSerializer
+from ..models import Activity, HiddenActivity, Invitation, Location
+from ..permissions import IsCreatorOrReadOnly
+from ..serializers import ActivityListSerializer, ActivitySerializer, LocationSerializer
 
 
 class LocationViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):

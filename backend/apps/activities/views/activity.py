@@ -7,9 +7,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.users.serializers import UserPublicSerializer
-from .models import Activity, HiddenActivity, Invitation, Location, ParticipantCheckpoint
-from .permissions import IsCreatorOrReadOnly
-from .serializers import ActivityListSerializer, ActivitySerializer
+from ..models import Activity, HiddenActivity, Invitation, Location, ParticipantCheckpoint
+from ..permissions import IsCreatorOrReadOnly
+from ..serializers import ActivityListSerializer, ActivitySerializer
 
 
 class ActivityViewSet(viewsets.ModelViewSet):

@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.users.models import User
 from apps.users.serializers import UserPublicSerializer
-from .models import Activity, Checkpoint, Invitation, ParticipantCheckpoint
+from ..models import Activity, Checkpoint, Invitation, ParticipantCheckpoint
 
 
 class ActivityParticipantSerializer(serializers.ModelSerializer):

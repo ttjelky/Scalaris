@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from rest_framework import serializers
 
-from .models import Location
+from ..models import Location
 
 
 class LocationSerializer(serializers.ModelSerializer):
