@@ -1,6 +1,6 @@
 # Scalaris
 
-Social map app for organizing backyard activities with friends — activities, game zones, quests, real-time notifications, and friend management on an interactive Leaflet map.
+Social map app for organizing activities with friends — activities, game zones, quests, real-time notifications, and friend management on an interactive Leaflet map.
 
 ---
 
