@@ -1,13 +1,44 @@
+import { PARTICIPANT_STATUS } from '../../utils/activity';
 // Shares BottomSheet's stylesheet — see the note at the top of
 // BottomSheet.jsx for why these classes aren't split into their own file.
 import styles from '../BottomSheet/BottomSheet.module.css';
 
 export default function ZonePanel({ selectedZone, isZoneCreator, deleting, onHide, onDelete }) {
+  const participants = selectedZone.participants || [];
+
   return (
     <div className={styles.ongoingWrap}>
       {selectedZone.description && (
         <p className={styles.heroText}>{selectedZone.description}</p>
       )}
+
+      <p className={styles.ongoingParticipantsTitle}>Учасники</p>
+      <div className={styles.ongoingParticipantsList}>
+        {participants.length === 0 ? (
+          <div className={styles.emptyState}>Немає учасників</div>
+        ) : (
+          participants.map((p) => {
+            const statusInfo = PARTICIPANT_STATUS[p.status] || { label: p.status, className: '' };
+            return (
+              <div key={p.id} className={styles.ongoingParticipant}>
+                {p.avatar ? (
+                  <img src={p.avatar} alt="" className={styles.ongoingParticipantAvatarImg} />
+                ) : (
+                  <span className={styles.ongoingParticipantAvatar}>
+                    {p.username?.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <span className={styles.ongoingParticipantName}>{p.username}</span>
+                <span
+                  className={`${styles.ongoingParticipantStatus} ${styles[statusInfo.className] || ''}`}
+                >
+                  {statusInfo.label}
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       {isZoneCreator ? (
         <>

@@ -48,14 +48,14 @@ describe('useNotifications hook', () => {
   })
 
   it('opens a WebSocket connection with the token', () => {
-    renderHook(() => useNotifications())
+    renderHook(() => useNotifications(true))
     expect(MockWebSocket.instances.length).toBe(1)
     expect(MockWebSocket.instances[0].url).toContain('mock-token')
     expect(MockWebSocket.instances[0].url).toContain('/api/ws/notifications/')
   })
 
   it('updates notifCount on notification_count message', () => {
-    const { result } = renderHook(() => useNotifications())
+    const { result } = renderHook(() => useNotifications(true))
 
     act(() => {
       MockWebSocket.instances[0].onmessage({ data: JSON.stringify({ type: 'notification_count', count: 5 }) })
@@ -65,7 +65,7 @@ describe('useNotifications hook', () => {
   })
 
   it('ignores malformed messages without crashing', () => {
-    const { result } = renderHook(() => useNotifications())
+    const { result } = renderHook(() => useNotifications(true))
 
     act(() => {
       MockWebSocket.instances[0].onmessage({ data: 'not-json' })
@@ -75,7 +75,7 @@ describe('useNotifications hook', () => {
   })
 
   it('ignores non-notification_count message types', () => {
-    const { result } = renderHook(() => useNotifications())
+    const { result } = renderHook(() => useNotifications(true))
 
     act(() => {
       MockWebSocket.instances[0].onmessage({ data: JSON.stringify({ type: 'other_event', count: 99 }) })
@@ -85,7 +85,7 @@ describe('useNotifications hook', () => {
   })
 
   it('refreshCount sends get_count message when connected', () => {
-    const { result } = renderHook(() => useNotifications())
+    const { result } = renderHook(() => useNotifications(true))
 
     act(() => {
       result.current.refreshCount()
@@ -95,7 +95,7 @@ describe('useNotifications hook', () => {
   })
 
   it('closes WebSocket on unmount', () => {
-    const { unmount } = renderHook(() => useNotifications())
+    const { unmount } = renderHook(() => useNotifications(true))
     const ws = MockWebSocket.instances[0]
 
     unmount()

@@ -1,3 +1,14 @@
+// Invitation.Status choices from the backend, mapped to display text and
+// a CSS-module class suffix for the status badge shown next to a
+// participant (used by both the ongoing-activity and game-zone panels).
+export const PARTICIPANT_STATUS = {
+  pending: { label: 'очікування', className: 'statusPending' },
+  accepted: { label: 'прийнято', className: 'statusAccepted' },
+  arrived: { label: 'на місці', className: 'statusArrived' },
+  declined: { label: 'відхилено', className: 'statusDeclined' },
+  left: { label: 'вийшов(ла)', className: 'statusLeft' },
+};
+
 // Formats elapsed ms as a compact clock string for the small hero badge,
 // e.g. "05:23" or "1:02:07" once it runs past an hour.
 export function formatClock(ms) {

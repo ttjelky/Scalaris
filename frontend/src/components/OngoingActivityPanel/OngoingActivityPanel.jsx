@@ -1,17 +1,7 @@
-import { formatDurationLong } from '../../utils/activity';
+import { formatDurationLong, PARTICIPANT_STATUS } from '../../utils/activity';
 // Shares BottomSheet's stylesheet — see the note at the top of
 // BottomSheet.jsx for why these classes aren't split into their own file.
 import styles from '../BottomSheet/BottomSheet.module.css';
-
-// Invitation.Status choices from the backend, mapped to display text and
-// a CSS-module class suffix for the status badge in the ongoing view.
-const PARTICIPANT_STATUS = {
-  pending: { label: 'очікування', className: 'statusPending' },
-  accepted: { label: 'прийнято', className: 'statusAccepted' },
-  arrived: { label: 'на місці', className: 'statusArrived' },
-  declined: { label: 'відхилено', className: 'statusDeclined' },
-  left: { label: 'вийшов(ла)', className: 'statusLeft' },
-};
 
 export default function OngoingActivityPanel({
   ongoingActivity,

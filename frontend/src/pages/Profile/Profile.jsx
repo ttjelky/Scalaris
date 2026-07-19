@@ -16,7 +16,7 @@ import ProfilePhoneRow from './ProfilePhoneRow';
 import SocialLinksSection from './SocialLinksSection';
 import LogoutSection from './LogoutSection';
 import BlockAction from './BlockAction';
-import ConfirmDialog from './ConfirmDialog';
+import ConfirmDialog from '../../components/ConfirmDialog/ConfirmDialog';
 
 export default function Profile() {
   const { id } = useParams();

@@ -26,6 +26,7 @@ export default function BottomSheet({
   ongoingDistanceLabel,
   ongoingParticipantsCount,
   selectedZone,
+  zoneParticipantsCount,
   nearbyCount,
   filterLabel,
   onPointerDown,
@@ -115,6 +116,19 @@ export default function BottomSheet({
               </>
             ) : selectedZone ? (
               <>
+                <div className={styles.heroRowParticipants}>
+                  <div
+                    className={styles.heroParticipantsCircle}
+                    aria-label={`Учасників у зоні: ${zoneParticipantsCount}`}
+                  >
+                    {zoneParticipantsCount}
+                  </div>
+                  <span className={styles.heroRowParticipantsLabel}>учасник</span>
+                </div>
+                <div className={styles.heroTitleBlock}>
+                  <h1 className={styles.heroTitle}>{selectedZone.title}</h1>
+                  <p className={styles.heroDistance}>Радіус: {selectedZone.radius || 80} м</p>
+                </div>
                 <button
                   type="button"
                   className={styles.sheetBackBtn}
@@ -123,10 +137,6 @@ export default function BottomSheet({
                 >
                   ←
                 </button>
-                <div className={styles.heroTitleBlock}>
-                  <h1 className={styles.heroTitle}>{selectedZone.title}</h1>
-                  <p className={styles.heroDistance}>Радіус: {selectedZone.radius || 80} м</p>
-                </div>
               </>
             ) : (
               <>

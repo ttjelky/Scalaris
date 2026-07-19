@@ -8,6 +8,10 @@ vi.mock('../api/axios.js', () => ({
 
 class MockWebSocket {
   static instances = []
+  static CONNECTING = 0
+  static OPEN = 1
+  static CLOSING = 2
+  static CLOSED = 3
 
   constructor(url) {
     this.url = url

@@ -11,6 +11,7 @@ vi.mock('../api/axios.js', () => {
     setAccessToken: vi.fn(),
     clearAccessToken: vi.fn(),
     onAuthFailure: vi.fn(),
+    tryRestoreSession: vi.fn().mockResolvedValue(false),
   }
   return mod
 })
@@ -19,7 +20,7 @@ vi.mock('../utils/discordAuth.js', () => ({
   getDiscordRedirectUri: () => 'http://localhost:5174/oauth/discord/callback',
 }))
 
-import api, { setAccessToken, clearAccessToken, onAuthFailure } from '../api/axios.js'
+import api, { setAccessToken, clearAccessToken, onAuthFailure, tryRestoreSession } from '../api/axios.js'
 
 function wrapper({ children }) {
   return <AuthProvider>{children}</AuthProvider>
@@ -29,6 +30,7 @@ describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     api.get.mockRejectedValue(new Error('no session'))
+    tryRestoreSession.mockResolvedValue(false)
   })
 
   it('starts in loading state', () => {
@@ -38,9 +40,9 @@ describe('AuthContext', () => {
   })
 
   it('sets authFailed when loadMe fails', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     const { result } = renderHook(() => useAuth(), { wrapper })
     await act(async () => {
-      // Wait for bootstrap to complete
       await new Promise((r) => setTimeout(r, 10))
     })
     expect(result.current.authFailed).toBe(true)
@@ -48,6 +50,7 @@ describe('AuthContext', () => {
   })
 
   it('sets user when loadMe succeeds', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValueOnce({ data: { username: 'alice', id: 1 } })
     const { result } = renderHook(() => useAuth(), { wrapper })
     await act(async () => {
@@ -58,6 +61,7 @@ describe('AuthContext', () => {
   })
 
   it('login calls api.post and loadMe', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'alice' } })
     api.post.mockResolvedValueOnce({ data: { access: 'token-123' } })
 
@@ -78,6 +82,7 @@ describe('AuthContext', () => {
   })
 
   it('register calls api.post then login', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'alice' } })
     api.post
       .mockResolvedValueOnce({ data: {} }) // register
@@ -106,6 +111,7 @@ describe('AuthContext', () => {
   })
 
   it('logout clears user and token', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'alice' } })
     api.post.mockResolvedValueOnce({}) // logout
 
@@ -124,6 +130,7 @@ describe('AuthContext', () => {
   })
 
   it('logout handles API error gracefully', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'alice' } })
     api.post.mockRejectedValueOnce(new Error('network'))
 
@@ -140,6 +147,7 @@ describe('AuthContext', () => {
   })
 
   it('updateUser merges fields into current user', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'alice', bio: '' } })
 
     const { result } = renderHook(() => useAuth(), { wrapper })
@@ -162,6 +170,7 @@ describe('AuthContext', () => {
   })
 
   it('loginWithDiscord posts code and loads profile', async () => {
+    tryRestoreSession.mockResolvedValue(true)
     api.get.mockResolvedValue({ data: { username: 'discorduser' } })
     api.post.mockResolvedValueOnce({ data: { access: 'discord-token' } })
 

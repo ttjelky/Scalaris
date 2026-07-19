@@ -14,12 +14,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+# TLS certificates (frontend/certs/ — self-signed dev certs must not be committed)
+*.pem
+
 # IDE
 .vscode/
 .idea/
-
-# Certificates
-*.pem
 
 # OS
 .DS_Store

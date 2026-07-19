@@ -5,6 +5,7 @@ import {
   removeFriend,
   sendFriendRequest,
 } from '../../api/friends';
+import ConfirmDialog from '../ConfirmDialog/ConfirmDialog';
 import styles from './FriendActionButton.module.css';
 
 export default function FriendActionButton({ userId, friendshipStatus, friendRequestId, onStatusChange }) {
@@ -12,6 +13,7 @@ export default function FriendActionButton({ userId, friendshipStatus, friendReq
   const [requestId, setRequestId] = useState(friendRequestId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   useEffect(() => {
     setStatus(friendshipStatus || 'none');
@@ -75,6 +77,7 @@ export default function FriendActionButton({ userId, friendshipStatus, friendReq
       setError('Не вдалося видалити з друзів.');
     } finally {
       setLoading(false);
+      setConfirmingRemove(false);
     }
   };
 
@@ -107,12 +110,24 @@ export default function FriendActionButton({ userId, friendshipStatus, friendReq
         </div>
         <button
           className={styles.removeFriend}
-          onClick={onRemoveFriend}
+          onClick={() => setConfirmingRemove(true)}
           type="button"
           disabled={loading}
         >
           {loading ? 'Видаляємо…' : 'Видалити з друзів'}
         </button>
+
+        {confirmingRemove && (
+          <ConfirmDialog
+            title="Видалити з друзів?"
+            text="Ви більше не будете бачити одне одного у списку друзів. Надіслати запит повторно можна буде будь-коли."
+            confirmLabel="Так, видалити"
+            loadingLabel="Видаляємо…"
+            loading={loading}
+            onConfirm={onRemoveFriend}
+            onCancel={() => setConfirmingRemove(false)}
+          />
+        )}
       </div>
     );
   } else if (loading) {

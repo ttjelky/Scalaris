@@ -16,6 +16,10 @@ dist-ssr
 .env
 .env.*
 
+# TLS certificates (self-signed dev certs)
+certs/
+*.pem
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

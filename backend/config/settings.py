@@ -12,7 +12,7 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-sc^@2dwo&cgv4!#9eu&47_g+40()1u821n6ilwm^2e@38@e%7z')
+SECRET_KEY = config('SECRET_KEY')
 
 DEBUG = config('DEBUG', default='True').lower() == 'true'
 
