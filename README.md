@@ -2,6 +2,12 @@
 
 Social map app for organizing activities with friends — activities, game zones, quests, real-time notifications, and friend management on an interactive Leaflet map.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ttjelky/ttjelky/main/assets/Scalaris_screen.png" width="720" alt="Scalaris screenshot"/>
+</p>
+
+> 🥉 **3rd place** at the SFLU 2026 All-Ukrainian team programming tournament — built in 5 days at the Ukraine Tech Camp by the Vector team. Since then, Scalaris is developed by [Oleksii Bezklynskyi](https://github.com/ttjelky).
+
 ---
 
 ## Tech Stack
@@ -33,8 +39,8 @@ Social map app for organizing activities with friends — activities, game zones
 
 ```bash
 # 1. Clone
-git clone <repo-url>
-cd scalaris
+git clone https://github.com/ttjelky/Scalaris.git
+cd Scalaris
 
 # 2. Root environment (docker-compose reads this for Postgres/Redis)
 cp .env.example .env
@@ -368,3 +374,13 @@ Set `EMAIL_HOST_USER` and `EMAIL_HOST_PASSWORD` in `backend/.env`. For Gmail, us
 
 ### CORS errors
 Backend allows `https://localhost:5174` and `https://127.0.0.1:5174` by default. If you changed the frontend port, update `CORS_ALLOWED_ORIGINS` in `backend/config/settings.py`.
+
+---
+
+## Authors
+
+Built by **Oleksii Bezklynskyi** (team lead), **Serhii Deineha** and **Artem Tsvelyh** at the SFLU 2026 Ukraine Tech Camp. Maintained by Oleksii Bezklynskyi.
+
+## License
+
+[MIT](LICENSE)
